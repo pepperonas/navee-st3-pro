@@ -1,5 +1,9 @@
 # Navee ST3 Pro — Scooter Toolkit
 
+<p align="center">
+  <img src="docs/banner.png" alt="Navee ST3 Pro Scooter Toolkit" width="100%">
+</p>
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-brightgreen.svg)](android/)
 [![Language](https://img.shields.io/badge/Language-Kotlin-purple.svg)](https://kotlinlang.org/)

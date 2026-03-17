@@ -9,13 +9,8 @@ Vollstaendige Referenz des proprietaeren BLE-Kommunikationsprotokolls des Navee 
 - [BLE UUIDs](#ble-uuids)
 - [Frame-Format](#frame-format)
 - [Kommando-Uebersicht](#kommando-uebersicht)
-  - [Schreib-Kommandos (Einzelbyte)](#schreib-kommandos-einzelbyte)
-  - [Schreib-Kommandos (Mehrbyte)](#schreib-kommandos-mehrbyte)
-  - [Lese-/Status-Kommandos](#lese-status-kommandos)
-  - [Authentifizierung](#authentifizierung)
-  - [Telemetrie (unaufgefordert)](#telemetrie-unaufgefordert)
 - [Status-Response (0x70)](#status-response-0x70)
-- [Telemetrie-Parsing (0x90)](#telemetrie-parsing-0x90)
+- [Telemetrie](#telemetrie)
 - [PID (Product ID)](#pid-product-id)
 - [Max-Speed Optionen nach PID](#max-speed-optionen-nach-pid)
 
@@ -29,13 +24,11 @@ Vollstaendige Referenz des proprietaeren BLE-Kommunikationsprotokolls des Navee 
 | **Write Characteristic** | `0000b002-0000-1000-8000-00805f9b34fb` |
 | **Notify Characteristic** | `0000b003-0000-1000-8000-00805f9b34fb` |
 
-Der Scooter advertised den Service-UUID im BLE-Scan-Record. Die Kommunikation erfolgt ausschliesslich ueber Write (App → Scooter) und Notify (Scooter → App).
+Der Scooter advertised den Service-UUID nicht immer im Scan-Record. Verbindung am besten per gespeicherter MAC-Adresse (Direct Connect).
 
 ---
 
 ## Frame-Format
-
-Jeder BLE-Frame folgt diesem Aufbau:
 
 ```
 ┌────────┬──────┬─────┬─────┬──────────┬──────────┬────────┐
@@ -47,26 +40,14 @@ Jeder BLE-Frame folgt diesem Aufbau:
 | Feld | Laenge | Beschreibung |
 |------|--------|--------------|
 | **Header** | 2 Bytes | Immer `0x55 0xAA` |
-| **Flag** | 1 Byte | Richtungsflag (z.B. `0x06` fuer Write, variiert) |
-| **CMD** | 1 Byte | Kommando-Byte (siehe Tabellen unten) |
-| **LEN** | 1 Byte | Laenge des DATA-Feldes in Bytes |
-| **DATA** | 0-n Bytes | Nutzlast, abhaengig vom Kommando |
+| **Flag** | 1 Byte | `0x00` = unverschluesselt |
+| **CMD** | 1 Byte | Kommando-Byte |
+| **LEN** | 1 Byte | Laenge des DATA-Feldes |
+| **DATA** | 0-n Bytes | Nutzlast |
 | **Checksum** | 1 Byte | Summe aller Bytes (Header bis DATA) mod 256 |
 | **Footer** | 2 Bytes | Immer `0xFE 0xFD` |
 
-### Beispiel: Scheinwerfer einschalten
-
-```
-55 AA 06 57 01 01 FE FE FD
-│  │  │  │  │  │  │  └─ Footer
-│  │  │  │  │  │  └──── Checksum: (55+AA+06+57+01+01) mod 256 = FE
-│  │  │  │  │  └─────── DATA: 01 (einschalten)
-│  │  │  │  └────────── LEN: 01
-│  │  │  └───────────── CMD: 57 (Headlight)
-│  │  └──────────────── Flag: 06
-│  └─────────────────── Header
-└────────────────────── Header
-```
+**Wichtig:** Die Response-Daten enthalten ein fuehrendes Version/Type-Byte (`data[0]`). Die eigentlichen Nutzdaten beginnen bei `data[1]`. Alle Byte-Indizes in diesem Dokument beziehen sich auf das rohe Data-Array inkl. dieses fuehrenden Bytes.
 
 ---
 
@@ -74,209 +55,168 @@ Jeder BLE-Frame folgt diesem Aufbau:
 
 ### Schreib-Kommandos (Einzelbyte)
 
-Kommandos mit einem einzelnen Datenbyte als Parameter.
+Alle verifiziert gegen die offizielle Navee APK (DeviceAfterFragment.java, DeviceMoreActionActivity.java).
 
-| CMD | Name | DATA | Beschreibung |
-|-----|------|------|--------------|
-| `0x50` | Unbind Vehicle | — | Fahrzeug-Bindung loesen |
-| `0x51` | Lock | `0x00` = entsperren, `0x01` = sperren | Fahrzeugsperre |
-| `0x52` | Cruise Control | `0x00` = aus, `0x01` = ein | Tempomat |
-| `0x53` | ERS / Regen Braking | Wert | Rekuperationsbremse / Energierueckgewinnung |
-| `0x55` | Mileage Unit | `0x00` = MPH, `0x01` = KM | Einheit fuer Kilometerstand |
-| `0x56` | Mileage Algorithm | Wert | Kilometerstand-Algorithmus |
-| `0x57` | Headlight | `0x00` = aus, `0x01` = ein | Scheinwerfer (bestaetigt via BT-Capture) |
-| `0x58` | Speed Mode | `0x03` = ECO, `0x05` = SPORT | Geschwindigkeitsmodus |
-| `0x59` | Reset Vehicle | — | Fahrzeug zuruecksetzen |
-| `0x5A` | Tire Maintenance | Wert | Reifenwartung |
-| `0x5E` | Ambient Light | `0x00` = aus, `0x01` = ein | Umgebungslicht-Sensor |
-| `0x60` | Taillight | `0x00` = aus, `0x01` = ein | Ruecklicht (bestaetigt via BT-Capture) |
-| `0x61` | Proximity Key | `0x00` = aus, `0x01` = ein | Naeherungsschluessel |
-| `0x6A` | Startup Speed | `0x00`-`0x05` (0.0-3.0 m/s) | Anfahrgeschwindigkeit |
-| `0x6B` | Custom Speed Limit | Bit 7 = aktiviert, Bits 0-6 = km/h | Benutzerdefiniertes Tempolimit |
-| `0x80` | Weather Update | Wert | Wetterdaten-Update |
+| CMD | Hex | Name | DATA | Status-Byte | Verifiziert |
+|-----|-----|------|------|-------------|-------------|
+| 80 | `0x50` | Unbind Vehicle | — | — | APK |
+| 81 | `0x51` | Lock | `0x00`/`0x01` | data[3] | BT-Capture + Live |
+| 82 | `0x52` | Cruise Control | `0x00`/`0x01` | data[4] | Live |
+| 83 | `0x53` | ERS (Rekuperation) | `0x1E`=30, `0x3C`=60, `0x5A`=90 | data[6] | Live + Original-App |
+| 84 | `0x54` | Taillight (Ruecklicht) | `0x00`/`0x01` | data[5] | APK |
+| 85 | `0x55` | Mileage Unit | `0x00`=MPH, `0x01`=KM | data[8] | APK |
+| 87 | `0x57` | Auto-Headlight (Lichtsensor) | `0x00`/`0x01` | data[9] | BT-Capture + Live |
+| 88 | `0x58` | Speed Mode | `0x03`=ECO, `0x05`=SPORT | data[2] | Live + Original-App |
+| 89 | `0x59` | Reset Vehicle | — | — | APK |
+| 90 | `0x5A` | Tire Maintenance | `0x01` | — | APK |
+| 94 | `0x5E` | Ambient Light | `0x00`/`0x01` (4 Bytes: on,E,D,S) | data[11] | APK |
+| 95 | `0x5F` | TCS (Traktionskontrolle) | `0x00`/`0x01` | data[12] | Live + Original-App |
+| 96 | `0x60` | Turn Sound (Blinker-Ton) | `0x00`/`0x01` | data[13] | Live |
+| 97 | `0x61` | Proximity Key | `0x00`/`0x01` | data[14] | APK |
+| 106 | `0x6A` | Startup Speed | `0x00`-`0x05` (0.0-3.0 m/s) | data[20] | APK |
+| 107 | `0x6B` | Custom Speed Limit | Bit7=aktiv, Bits0-6=km/h | data[21] | APK |
 
 ### Schreib-Kommandos (Mehrbyte)
 
-Kommandos mit mehreren Datenbytes.
-
-| CMD | Name | DATA | Beschreibung |
-|-----|------|------|--------------|
-| `0x63` | Set Digit Password | 6 Bytes | 6-stelliges Zahlenpasswort setzen |
-| `0x67` | Light Control | variabel | Erweiterte Lichtsteuerung |
-| `0x6E` | Max Speed | `[0x01, km/h]` | Maximale Geschwindigkeit — wird ACK'd, ist aber auf DE-Firmware Read-Only |
-| `0x6F` | Set Scooter Parameters | variabel | Fahrzeugparameter nach Auth setzen |
-
-#### Custom Speed Limit (`0x6B`) im Detail
-
-Das Datenbyte ist eine Kombination aus Enable-Flag und Geschwindigkeitswert:
-
-```
-Bit 7 (0x80): Enable/Disable
-Bits 0-6:     Geschwindigkeit in km/h
-
-Beispiele:
-  0x80 | 20 = 0x94  → Limit aktiviert, 20 km/h
-  0x80 | 15 = 0x8F  → Limit aktiviert, 15 km/h
-  0x00 | 0  = 0x00  → Limit deaktiviert
-```
+| CMD | Hex | Name | DATA | Beschreibung |
+|-----|-----|------|------|--------------|
+| 99 | `0x63` | Set Digit Password | 6 Bytes | 6-stelliges Zahlenpasswort |
+| 103 | `0x67` | Light Control | variabel | Erweiterte Lichtsteuerung |
+| 109 | `0x6D` | Generic Light | `[typ, state]` | typ: 1=Ambient, 2=Logo, 3=DayRun |
+| 110 | `0x6E` | Max Speed | `[0x01, km/h]` | ACK'd, aber Read-Only auf DE-FW |
+| 111 | `0x6F` | Set Params | variabel | Post-Auth Parameter |
 
 ### Lese-/Status-Kommandos
 
-Anfragen an den Scooter, die eine Response auf der Notify-Characteristic ausloesen.
-
-| CMD | Name | Response-Laenge | Beschreibung |
-|-----|------|-----------------|--------------|
-| `0x70` | Vehicle Settings | 37 Bytes | Vollstaendiger Fahrzeugstatus (siehe [0x70 Mapping](#status-response-0x70)) |
-| `0x71` | Driving/Trip Data | variabel | Fahrt- und Trip-Daten |
-| `0x72` | Battery Status | 37 Bytes | Detaillierter Batterie-Status |
-| `0x73` | Firmware Version | variabel | Firmware-Versionsstring |
-| `0x74` | Serial Number | variabel | Seriennummer des Fahrzeugs |
-| `0x75` | Battery SN | variabel | Seriennummer der Batterie |
-| `0x76` | Drive History | variabel | Fahrtenverlauf |
-| `0x79` | Battery Extra Info | variabel | Erweiterte Batterie-Informationen |
-| `0x7A` | Password & Switch Status | variabel | Passwort- und Schalter-Status |
+| CMD | Hex | Name | Response |
+|-----|-----|------|----------|
+| 112 | `0x70` | Vehicle Settings | 37 Bytes (siehe unten) |
+| 113 | `0x71` | Driving/Trip Data | variabel |
+| 114 | `0x72` | Battery Status | 37 Bytes |
+| 115 | `0x73` | Firmware Version | String |
+| 116 | `0x74` | Serial Number | String |
+| 117 | `0x75` | Battery SN | String |
+| 118 | `0x76` | Drive History | variabel |
+| 121 | `0x79` | Battery Extra Info | variabel |
 
 ### Authentifizierung
 
-| CMD | Name | Beschreibung |
-|-----|------|--------------|
-| `0x30` | Auth Request | Authentifizierungsanfrage (siehe [AUTHENTICATION.md](AUTHENTICATION.md)) |
-| `0x31` | Auth Key | Challenge-Response Auth (nicht benoetigt fuer einfache Auth) |
+| CMD | Hex | Name | Beschreibung |
+|-----|-----|------|--------------|
+| 48 | `0x30` | Auth Request | `[keyIndex, 0x00, 6-Byte deviceId, 0x00]` |
+| 49 | `0x31` | Auth Key | Challenge-Response (nicht benoetigt bei PID 23452) |
 
 ### Telemetrie (unaufgefordert)
 
-Diese Kommandos werden vom Scooter automatisch gesendet, sobald Notifications aktiviert sind.
-
-| CMD | Name | Laenge | Beschreibung |
-|-----|------|--------|--------------|
-| `0x90` | Home Page Telemetry | 17 Bytes | Hauptseiten-Telemetrie (siehe [0x90 Parsing](#telemetrie-parsing-0x90)) |
-| `0x91` | Realtime Status v0 | variabel | Echtzeit-Status Version 0 |
-| `0x92` | Realtime Status v1 | variabel | Echtzeit-Status Version 1 |
+| CMD | Hex | Name | Beschreibung |
+|-----|-----|------|--------------|
+| 144 | `0x90` | HomePage Telemetry | Batterie, Reichweite, Spannung |
+| 145 | `0x91` | Realtime Status v0 | Kompakt-Status |
+| 146 | `0x92` | DrivePage Telemetry | Speed, Distanz, Trip |
 
 ---
 
 ## Status-Response (0x70)
 
-Die Antwort auf CMD `0x70` liefert 37 Bytes mit dem vollstaendigen Fahrzeugstatus. Mapping basierend auf Live-Daten und APK-Analyse:
+37 Bytes. Mapping verifiziert gegen BT-HCI-Capture und offizielle APK (DeviceCarInfo.java, b4/a.java case 112).
 
-| Byte | Name | Werte | Beschreibung |
-|------|------|-------|--------------|
-| 0 | Binding Status | `0x00`/`0x01` | Bindungsstatus |
-| 1 | Drive Mode | `0x01` = Normal | Fahrmodus |
-| 2 | Speed Mode | `0x03` = ECO, `0x05` = SPORT | Geschwindigkeitsmodus |
-| 3 | Lock | `0x00` = entsperrt, `0x01` = gesperrt | Fahrzeugsperre |
-| 4 | Cruise Control | `0x00` = aus, `0x01` = ein | Tempomat |
-| 5 | Taillight | `0x00` = aus, `0x01` = ein | Ruecklicht |
-| 6 | ERS / Speed Setting | `0x3C` = 60%, `0x5A` = 90% | Rekuperationsstufe |
-| 7 | Mileage Unit | `0x00` = MPH, `0x01` = KM | Entfernungseinheit |
-| 8 | Auto Sensor | `0x00`/`0x01` | Automatischer Sensor |
-| 9 | Headlight | `0x00` = aus, `0x01` = ein | Scheinwerfer |
-| 10 | Ambient Light | `0x00` = aus, `0x01` = ein | Umgebungslicht |
-| 11 | TCS Switch | `0x00`/`0x01` | Traktionskontrolle |
-| 12 | Turn Sound | `0x00`/`0x01` | Blinker-Sound |
-| 13 | Proximity Key | `0x00` = aus, `0x01` = ein | Naeherungsschluessel |
-| 14 | Night Mode | `0x00`/`0x01` | Nachtmodus |
-| 15 | Reserved | — | Reserviert |
-| 16 | Reserved | — | Reserviert |
-| 17 | Reserved | — | Reserviert |
-| 18 | Reserved | — | Reserviert |
-| 19 | Startup Speed | `0x00`-`0x05` | Anfahrgeschwindigkeit (0.0-3.0 m/s) |
-| 20 | Speed Limit | Bit 7 = aktiv, Bits 0-6 = km/h | Benutzerdefiniertes Tempolimit |
-| 21 | Reserved | — | Reserviert |
-| 22 | Reserved | — | Reserviert |
-| 23 | Reserved | — | Reserviert |
-| 24 | Reserved | — | Reserviert |
-| 25 | Reserved | — | Reserviert |
-| 26 | Max Speed | z.B. `0x16` = 22 km/h (DE) | Firmware-Geschwindigkeitslimit (PID-abhaengig) |
-| 27-36 | Reserved | — | Reserviert / unbekannt |
+**Hinweis:** `data[0]` ist ein Version/Type-Byte. Offizielle APK-Byte-Indizes (Byte 0-38) entsprechen `data[1]`-`data[39]`.
 
-### Beispiel-Response (DE-Firmware)
-
-```
-Byte:  00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 ... 19 20 ... 26
-Wert:  01 01 03 00 00 01 3C 01 00 01 00 00 00 00 00 ... 02 94 ... 16
-
-Interpretation:
-  Gebunden, Normal-Modus, ECO, entsperrt, kein Tempomat,
-  Ruecklicht ein, ERS 60%, km-Einheit, Scheinwerfer ein,
-  Startup Speed 2 (1.2 m/s), Speed Limit aktiv bei 20 km/h,
-  Max Speed 22 km/h (Firmware-Cap DE)
-```
+| data[] | Offiziell | Name | Werte | Verifiziert |
+|--------|-----------|------|-------|-------------|
+| 1 | Byte 0 | Binding Status | `0x00`/`0x01` | APK |
+| 2 | Byte 1 | Drive Mode | `0x03`=ECO, `0x05`=SPORT | BT-Capture: 0x58 aendert dieses Byte |
+| 3 | Byte 2 | Lock Status | `0x00`=offen, `0x01`=gesperrt | BT-Capture: 0x51 aendert dieses Byte |
+| 4 | Byte 3 | CCS (Tempomat) | `0x00`/`0x01` | APK |
+| 5 | Byte 4 | Tail Light | `0x00`/`0x01` | APK |
+| 6 | Byte 5 | ERS Level | `0x1E`=30, `0x3C`=60, `0x5A`=90 | Live: 0x53 aendert dieses Byte |
+| 7 | Byte 6 | Mileage Algorithm | Wert | APK |
+| 8 | Byte 7 | Mileage Unit | `0x00`=MPH, `0x01`=KM | APK |
+| 9 | Byte 8 | Auto Sensor (Licht) | `0x00`/`0x01` | BT-Capture: 0x57 aendert dieses Byte |
+| 10 | Byte 9 | Tyre Switch | `0x00`/`0x01` | APK |
+| 11 | Byte 10 | Ambient Light | `0x00`/`0x01` | APK |
+| 12 | Byte 11 | TCS Switch | `0x00`/`0x01` | Live: 0x5F aendert dieses Byte |
+| 13 | Byte 12 | Turn Sound | `0x00`/`0x01` | Live: 0x60 aendert dieses Byte |
+| 14 | Byte 13 | Proximity Key | `0x00`/`0x01` | APK |
+| 15 | Byte 14 | Night Mode | `0x00`/`0x01` | APK |
+| 16-19 | Byte 15-18 | Light E/D/S, Algo | Werte | APK |
+| 20 | Byte 19 | Startup Speed | `0x00`-`0x05` | APK |
+| 21 | Byte 20 | Speed Limit | Bit7=aktiv, Bits0-6=km/h | APK |
+| 22-25 | Byte 21-24 | Volume, Lang, Logo, DayRun | Werte | APK |
+| 26 | Byte 25 | **Max Speed** | z.B. `0x16`=22 km/h | Live: Firmware-Cap, nicht aenderbar |
+| 27 | Byte 26 | Drive Mode 2 | Wert | APK |
+| 28-37 | Byte 27-36 | Charge, Lock, Weather etc. | Werte | APK |
 
 ---
 
-## Telemetrie-Parsing (0x90)
+## Telemetrie
 
-Die Home-Page-Telemetrie wird kontinuierlich vom Scooter gesendet (17 Bytes Nutzdaten):
+### HomePage (0x90) — Batterie & Reichweite
 
-| Byte(s) | Name | Format | Beschreibung |
-|---------|------|--------|--------------|
-| 3 | Battery | uint8 | Akkustand in Prozent (0-100) |
-| 5-6 | Speed | uint16 LE | Aktuelle Geschwindigkeit (Little-Endian, /10 fuer km/h) |
-| 7 | Temperature | int8 | Temperatur in Grad Celsius |
-| 9-10 | Total Distance | uint16 LE | Gesamtstrecke (Little-Endian, /10 fuer km) |
+Offizielles Parsing aus APK (DeviceHomePageInfo):
 
-### Parsing-Beispiel
+| data[] | Offiziell | Name | Format |
+|--------|-----------|------|--------|
+| 1 | Byte 0 | Warning Code | uint8 |
+| 2 | Byte 1 | Driving Mode | uint8 |
+| 3 | Byte 2 | **Battery %** | uint8 (0-100) |
+| 4 | Byte 3 | Battery Status | uint8 |
+| 5 | Byte 4 | Charging State | uint8 |
+| 6 | Byte 5 | Lock Push Warn | uint8 |
+| 7 | Byte 6 | **Remain Range (km)** | uint8 |
+| 8 | Byte 7 | Lock Status | uint8 (Wert - 1) |
+| 9-12 | Byte 8-11 | **Battery Voltage (mV)** | uint32 LE |
+| 13-16 | Byte 12-15 | Battery Current (mA) | uint32 LE |
 
-```
-Rohdaten (DATA-Feld): ... 42 ... 00 C8 1E ... 03 E8 ...
-                            │      │  │  │      │  │
-                            │      │  │  │      └──┴── Bytes 9-10: 0x03E8 = 1000 → 100.0 km
-                            │      │  │  └──────────── Byte 7: 0x1E = 30 → 30 Grad C
-                            │      └──┴─────────────── Bytes 5-6: 0x00C8 = 200 → 20.0 km/h
-                            └───────────────────────── Byte 3: 0x42 = 66 → 66%
-```
+### DrivePage (0x92) — Geschwindigkeit & Distanz
 
-### Speed-Berechnung (Little-Endian)
+Offizielles Parsing aus APK (DeviceSubPageInfo, version=1):
 
-```kotlin
-val speedRaw = data[5].toInt() and 0xFF or ((data[6].toInt() and 0xFF) shl 8)
-val speedKmh = speedRaw / 10.0
-```
+| data[] | Offiziell | Name | Format |
+|--------|-----------|------|--------|
+| 1 | Byte 0 | Battery % | uint8 |
+| 2 | Byte 1 | Driving Status | uint8 |
+| 3-4 | Byte 2-3 | **Speed (raw)** | uint16 LE, **/10 fuer km/h** |
+| 5 | Byte 4 | Remain Range (km) | uint8 |
+| 6-7 | Byte 5-6 | Trip Distance | uint16 LE |
+| 8 | Byte 7 | Trip Duration | uint8 |
+| 9-10 | Byte 8-9 | Max Speed | uint16 LE |
+| 11-12 | Byte 10-11 | Avg Speed | uint16 LE |
+| 13-14 | Byte 12-13 | **Total Mileage** | uint16 LE |
+| 15-18 | Byte 14-17 | Total Mileage (4B) | uint32 LE (Override wenn > 0) |
 
 ---
 
 ## PID (Product ID)
 
-Die Product ID (PID) identifiziert das Scooter-Modell und bestimmt die verfuegbaren Geschwindigkeitsoptionen.
-
-### Extraktion aus BLE Scan Record
-
-Die PID wird aus den Bytes 6-8 des BLE-Scan-Records extrahiert (Little-Endian):
+Extraktion aus BLE Scan Record Bytes 6-7 (Little-Endian 16-Bit):
 
 ```kotlin
 val pid = scanRecord[6].toInt() and 0xFF or
-         ((scanRecord[7].toInt() and 0xFF) shl 8) or
-         ((scanRecord[8].toInt() and 0xFF) shl 16)
+         ((scanRecord[7].toInt() and 0xFF) shl 8)
 ```
-
-### PID-Tabelle (aus offizieller APK)
-
-| PID | Modell | Markt |
-|-----|--------|-------|
-| 23452 | ST3 Pro | DE (Deutschland) |
-| 23451 | ST3 Pro | Global |
-| 23450 | ST3 | Global |
 
 ---
 
 ## Max-Speed Optionen nach PID
 
-Die maximale Geschwindigkeit ist PID-abhaengig und firmware-seitig begrenzt. Die folgende Tabelle zeigt die verfuegbaren Optionen gemaess der offiziellen APK:
+| PID | Verfuegbare Geschwindigkeiten (km/h) |
+|-----|--------------------------------------|
+| 2509 | 25, 30, 35, 40 |
+| 2511, 2516 | 25, 32, 45, 50 |
+| 2547 | 25, 32, 40, 50, 60 |
+| 2585 | 25, 32, 40, 50, 70 |
+| 2544 | 25, 30, 35, 40, 45, 50, 55, 60 |
+| 2449 | 25, 30, 35, 40, 45, 50, 55, 60, 65 |
+| 23452 (ST3 Pro DE) | **22 km/h Firmware-Limit** (nicht aenderbar) |
 
-| PID | ECO (km/h) | SPORT (km/h) | Max (Firmware) | Markt |
-|-----|------------|---------------|----------------|-------|
-| 23452 | 6, 10, 15, 20 | 6, 10, 15, 20, 22 | **22 km/h** | DE |
-| 23451 | 6, 10, 15, 20, 25 | 6, 10, 15, 20, 25, 30 | 30 km/h | Global |
-| 23450 | 6, 10, 15, 20 | 6, 10, 15, 20, 25 | 25 km/h | Global |
+### Firmware-Limit DE
 
-### Wichtiger Hinweis
-
-Der CMD `0x6E` (Max Speed) wird vom Scooter zwar mit ACK bestaetigt, aendert aber auf der DE-Firmware (PID 23452) **nicht** die tatsaechliche Hoechstgeschwindigkeit. Der Wert `0x16` (22 km/h) in Byte 26 der Status-Response ist ein **firmware-seitiges Hard-Limit**, das nicht per BLE ueberschrieben werden kann.
+CMD `0x6E` (Max Speed) wird ACK'd, aendert aber auf PID 23452 **nicht** die Hoechstgeschwindigkeit. Byte 26 der Status-Response bleibt bei `0x16` (22 km/h).
 
 ---
 
 ## Siehe auch
 
-- [AUTHENTICATION.md](AUTHENTICATION.md) — Authentifizierungsablauf
-- [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) — Reverse-Engineering Ergebnisse
+- [AUTHENTICATION.md](AUTHENTICATION.md) — Auth-Flow mit AES-Keys und Device-ID
+- [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) — Methodik und Ergebnisse

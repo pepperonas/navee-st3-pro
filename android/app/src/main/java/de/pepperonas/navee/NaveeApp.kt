@@ -16,5 +16,11 @@ class NaveeApp : Application() {
                 postAuthParamsHex = "REDACTED_POST_AUTH"
             )
         }
+
+        // Seed last known MAC for direct connect
+        val blePrefs = getSharedPreferences("navee_ble", MODE_PRIVATE)
+        if (blePrefs.getString("last_mac", null) == null) {
+            blePrefs.edit().putString("last_mac", "XX:XX:XX:XX:XX:XX").apply()
+        }
     }
 }

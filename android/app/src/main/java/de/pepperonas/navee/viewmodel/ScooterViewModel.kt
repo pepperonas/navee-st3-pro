@@ -24,13 +24,11 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
             2449 -> listOf(25, 30, 35, 40, 45, 50, 55, 60, 65)
             2416, 2443, 2529 -> listOf(25, 32, 45, 50)
             2611, 2612, 2643 -> listOf(25, 32)
-            2402, 2403, 2418 -> listOf(25, 32)
             else -> listOf(20, 25, 30, 32, 35, 40)
         }
     }
 
     val ble = NaveeBleManager(app.applicationContext)
-
     val connectionState = ble.connectionState
     val deviceName = ble.deviceName
     val pid = ble.pid
@@ -51,6 +49,7 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
     val authenticated: StateFlow<Boolean> = _authenticated
 
     private var pollingJob: Job? = null
+    private var commandCooldown = false
 
     val maxSpeedOptions: StateFlow<List<Int>> = pid.map { pid ->
         getMaxSpeedOptionsForPID(pid)
@@ -60,9 +59,7 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
         NaveeAuth.init(app.applicationContext)
 
         viewModelScope.launch {
-            ble.incomingFrames.collect { frame ->
-                handleFrame(frame)
-            }
+            ble.incomingFrames.collect { frame -> handleFrame(frame) }
         }
 
         viewModelScope.launch {
@@ -91,56 +88,60 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
     fun disconnect() = ble.disconnect()
 
     fun toggleLock() {
-        ble.send(NaveeProtocol.setLock(!_state.value.locked))
-        requestStatus()
+        _state.value = _state.value.copy(locked = !_state.value.locked)
+        ble.send(NaveeProtocol.setLock(_state.value.locked))
+        requestStatusDelayed()
     }
 
     fun toggleCruise() {
-        ble.send(NaveeProtocol.setCruise(!_state.value.cruiseOn))
-        requestStatus()
+        _state.value = _state.value.copy(cruiseOn = !_state.value.cruiseOn)
+        ble.send(NaveeProtocol.setCruise(_state.value.cruiseOn))
+        requestStatusDelayed()
     }
 
-    fun toggleTaillight() {
-        val on = !_state.value.taillightOn
-        ble.send(NaveeProtocol.buildFrame(0x60, byteArrayOf(if (on) 0x01 else 0x00)))
-        requestStatus()
+    fun toggleLight() {
+        val on = !_state.value.autoHeadlight
+        Log.i(TAG, "toggleLight -> $on")
+        _state.value = _state.value.copy(autoHeadlight = on)
+        ble.send(NaveeProtocol.buildFrame(NaveeProtocol.CMD_AUTO_HEADLIGHT, byteArrayOf(if (on) 0x01 else 0x00)))
+        requestStatusDelayed()
     }
 
-    fun toggleHeadlight() {
-        val on = !_state.value.headlightOn
-        ble.send(NaveeProtocol.buildFrame(0x57, byteArrayOf(if (on) 0x01 else 0x00)))
-        requestStatus()
+    fun toggleTcs() {
+        val on = !_state.value.tcsOn
+        _state.value = _state.value.copy(tcsOn = on)
+        ble.send(NaveeProtocol.buildFrame(0x5F, byteArrayOf(if (on) 0x01 else 0x00)))
+        requestStatusDelayed()
+    }
+
+    fun toggleTurnSound() {
+        val on = !_state.value.turnSound
+        _state.value = _state.value.copy(turnSound = on)
+        ble.send(NaveeProtocol.buildFrame(NaveeProtocol.CMD_TURN_SOUND, byteArrayOf(if (on) 0x01 else 0x00)))
+        requestStatusDelayed()
     }
 
     fun setSpeedMode(eco: Boolean) {
         val mode = if (eco) NaveeProtocol.SPEED_MODE_ECO else NaveeProtocol.SPEED_MODE_SPORT
         ble.send(NaveeProtocol.setSpeedMode(mode))
-        requestStatus()
+        requestStatusDelayed()
     }
 
     fun setMaxSpeed(kmh: Int) {
         ble.send(NaveeProtocol.setMaxSpeed(kmh))
-        requestStatus()
-    }
-
-    fun setCustomSpeedLimit(kmh: Int, enabled: Boolean) {
-        ble.send(NaveeProtocol.setCustomSpeedLimit(kmh, enabled))
-        requestStatus()
+        requestStatusDelayed()
     }
 
     fun setErsLevel(level: Int) {
         ble.send(NaveeProtocol.setERS(level.toByte()))
-        requestStatus()
+        requestStatusDelayed()
     }
 
-    fun setStartupSpeed(level: Int) {
-        ble.send(NaveeProtocol.setStartupSpeed(level.toByte()))
-        requestStatus()
-    }
-
-    private fun requestStatus() {
+    private fun requestStatusDelayed() {
         viewModelScope.launch {
-            delay(100)
+            commandCooldown = true
+            delay(1500)
+            commandCooldown = false
             ble.send(NaveeProtocol.statusRequest())
         }
     }
@@ -148,20 +149,16 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
     private fun startAuthThenPoll() {
         viewModelScope.launch {
             if (NaveeAuth.hasCredentials()) {
-                Log.i(TAG, "Starting authentication...")
-                val authFrame = NaveeAuth.buildAuthRequest()
-                if (authFrame != null) {
-                    ble.send(authFrame)
-                    delay(5000)
-                    if (!_authenticated.value) {
-                        Log.w(TAG, "Auth timeout — polling without auth")
-                        startPolling()
-                    }
-                    return@launch
+                Log.i(TAG, "Authenticating...")
+                NaveeAuth.buildAuthRequest()?.let { ble.send(it) }
+                delay(5000)
+                if (!_authenticated.value) {
+                    Log.w(TAG, "Auth timeout")
+                    startPolling()
                 }
+            } else {
+                startPolling()
             }
-            Log.w(TAG, "No auth credentials — polling without auth")
-            startPolling()
         }
     }
 
@@ -173,8 +170,6 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
             ble.send(NaveeProtocol.firmwareRequest())
             delay(200)
             ble.send(NaveeProtocol.statusRequest())
-            delay(200)
-            ble.send(NaveeProtocol.batteryRequest())
 
             while (ble.connectionState.value == ConnectionState.CONNECTED) {
                 delay(2000)
@@ -186,26 +181,35 @@ class ScooterViewModel(app: Application) : AndroidViewModel(app) {
     private fun handleFrame(frame: NaveeProtocol.ParsedFrame) {
         when (frame.cmd) {
             NaveeProtocol.CMD_AUTH -> {
-                Log.i(TAG, "AUTH response: ${frame.data.joinToString(" ") { "%02X".format(it) }}")
                 val success = frame.data.isNotEmpty() && frame.data[0] == 0x00.toByte()
+                _authenticated.value = success
+                Log.i(TAG, "Auth: ${if (success) "OK" else "FAILED (${frame.data.getOrNull(0)?.toInt()?.and(0xFF)})"}")
                 if (success) {
-                    _authenticated.value = true
-                    Log.i(TAG, "AUTH SUCCESS")
                     NaveeAuth.buildPostAuthParams()?.let { ble.send(it) }
-                    viewModelScope.launch {
-                        delay(200)
-                        startPolling()
-                    }
-                } else {
-                    Log.e(TAG, "AUTH FAILED: error=${frame.data.getOrNull(0)?.toInt()?.and(0xFF)}")
+                }
+                viewModelScope.launch {
+                    delay(200)
                     startPolling()
                 }
             }
             NaveeProtocol.CMD_STATUS -> {
-                parseStatus(frame.data)?.let { _state.value = it }
+                if (!commandCooldown) {
+                    parseStatus(frame.data)?.let { _state.value = it }
+                }
             }
-            NaveeProtocol.CMD_TELEMETRY_90 -> {
-                parseTelemetry(frame.data)?.let { _telemetry.value = it }
+            NaveeProtocol.CMD_TELEM_HOME -> {
+                parseHomeTelemetry(frame.data)?.let { home ->
+                    _telemetry.value = _telemetry.value.copy(
+                        battery = home.battery,
+                        remainRange = home.remainRange,
+                        batteryVoltage = home.batteryVoltage,
+                    )
+                }
+            }
+            NaveeProtocol.CMD_TELEM_DRIVE -> {
+                parseDriveTelemetry(frame.data, _telemetry.value)?.let { drive ->
+                    _telemetry.value = drive
+                }
             }
             NaveeProtocol.CMD_SERIAL -> {
                 _serial.value = frame.data.drop(1)

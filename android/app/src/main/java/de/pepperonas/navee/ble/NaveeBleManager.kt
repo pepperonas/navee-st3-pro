@@ -48,10 +48,37 @@ class NaveeBleManager(private val context: Context) {
     private val writeComplete = Channel<Unit>(capacity = 1)
     private var writeJob: Job? = null
 
+    private val prefs = context.getSharedPreferences("navee_ble", Context.MODE_PRIVATE)
+
     private val adapter: BluetoothAdapter?
         get() = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
 
+    /** Try direct connect to last known MAC, fall back to scan. */
     fun startScan() {
+        val lastMac = prefs.getString("last_mac", null)
+        if (lastMac != null) {
+            Log.i(TAG, "Trying direct connect to $lastMac")
+            _connectionState.value = ConnectionState.CONNECTING
+            val device = adapter?.getRemoteDevice(lastMac)
+            if (device != null) {
+                device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+                // Timeout: if not connected in 5s, fall back to scan
+                scope.launch {
+                    delay(5000)
+                    if (_connectionState.value == ConnectionState.CONNECTING) {
+                        Log.i(TAG, "Direct connect timeout, falling back to scan")
+                        bluetoothGatt?.close()
+                        bluetoothGatt = null
+                        startBLEScan()
+                    }
+                }
+                return
+            }
+        }
+        startBLEScan()
+    }
+
+    private fun startBLEScan() {
         val scanner = adapter?.bluetoothLeScanner ?: run {
             Log.e(TAG, "BLE scanner not available")
             return
@@ -104,6 +131,7 @@ class NaveeBleManager(private val context: Context) {
             adapter?.bluetoothLeScanner?.stopScan(this)
             _deviceName.value = name
             _macAddress.value = device.address
+            prefs.edit().putString("last_mac", device.address).apply()
             Log.i(TAG, "Found Navee: $name (${device.address})")
 
             val scanRecord = result.scanRecord?.bytes

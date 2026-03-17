@@ -151,6 +151,7 @@ private fun DisconnectedView(state: ConnectionState, modifier: Modifier, viewMod
 }
 
 @Composable
+@Suppress("UNUSED_PARAMETER")
 private fun BatteryAndSpeedCard(telemetry: ScooterTelemetry, state: ScooterState) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -199,15 +200,19 @@ private fun BatteryAndSpeedCard(telemetry: ScooterTelemetry, state: ScooterState
                 color = Color.Gray.copy(alpha = 0.3f)
             )
 
-            // Temperature
+            // Range
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    "${telemetry.temperature}",
+                    "${telemetry.remainRange}",
                     fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (telemetry.temperature > 50) NaveeOrange else NaveeBlue
+                    color = when {
+                        telemetry.remainRange > 30 -> NaveeGreen
+                        telemetry.remainRange > 10 -> NaveeOrange
+                        else -> NaveeRed
+                    }
                 )
-                Text("\u00B0C", color = Color.Gray, fontSize = 14.sp)
+                Text("km", color = Color.Gray, fontSize = 14.sp)
             }
         }
     }
@@ -231,10 +236,10 @@ private fun ControlsGrid(state: ScooterState, viewModel: ScooterViewModel) {
             ToggleCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Lightbulb,
-                label = "Frontlicht",
-                active = state.headlightOn,
+                label = "Licht",
+                active = state.autoHeadlight,
                 activeColor = NaveeOrange,
-                onClick = { viewModel.toggleHeadlight() }
+                onClick = { viewModel.toggleLight() }
             )
         }
         Row(
@@ -243,20 +248,34 @@ private fun ControlsGrid(state: ScooterState, viewModel: ScooterViewModel) {
         ) {
             ToggleCard(
                 modifier = Modifier.weight(1f),
-                icon = Icons.Default.TripOrigin,
-                label = "R\u00fccklicht",
-                active = state.taillightOn,
-                activeColor = NaveeRed,
-                onClick = { viewModel.toggleTaillight() }
-            )
-            ToggleCard(
-                modifier = Modifier.weight(1f),
                 icon = Icons.Default.Speed,
                 label = "Tempomat",
                 active = state.cruiseOn,
                 activeColor = NaveeBlue,
                 onClick = { viewModel.toggleCruise() }
             )
+            ToggleCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.Security,
+                label = "TCS",
+                active = state.tcsOn,
+                activeColor = NaveeGreen,
+                onClick = { viewModel.toggleTcs() }
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ToggleCard(
+                modifier = Modifier.weight(1f),
+                icon = Icons.Default.VolumeUp,
+                label = "Blinker-Ton",
+                active = state.turnSound,
+                activeColor = NaveeBlue,
+                onClick = { viewModel.toggleTurnSound() }
+            )
+            Spacer(Modifier.weight(1f))
         }
     }
 }
@@ -280,11 +299,10 @@ private fun ToggleCard(
     )
 
     Card(
+        onClick = onClick,
         modifier = modifier
             .height(100.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, borderColor, RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
+            .border(1.5.dp, borderColor, RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = bgColor)
     ) {
@@ -416,7 +434,7 @@ private fun ErsCard(state: ScooterState, viewModel: ScooterViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                listOf(1 to "Niedrig", 2 to "Mittel", 3 to "Hoch").forEach { (level, label) ->
+                listOf(30 to "Niedrig", 60 to "Mittel", 90 to "Hoch").forEach { (level, label) ->
                     ModeButton(
                         modifier = Modifier.weight(1f),
                         label = label,
@@ -488,11 +506,11 @@ private fun InfoCard(serial: String, firmware: String, telemetry: ScooterTelemet
             if (state.maxSpeed > 0) {
                 InfoRow("Max Speed (FW)", "${state.maxSpeed} km/h")
             }
-            if (state.speedLimitEnabled) {
-                InfoRow("Speed Limit", "${state.speedLimitKmh} km/h")
+            if (telemetry.totalMileage > 0) {
+                InfoRow("Gesamtstrecke", "${telemetry.totalMileage} km")
             }
-            if (telemetry.totalDistance > 0) {
-                InfoRow("Gesamtstrecke", String.format("%.1f km", telemetry.totalDistance / 10.0))
+            if (telemetry.batteryVoltage > 0) {
+                InfoRow("Spannung", String.format("%.1f V", telemetry.batteryVoltage / 1000.0))
             }
             InfoRow("Modus", if (state.speedMode == 5) "SPORT" else "ECO")
             InfoRow("ERS Level", "${state.ersLevel}")

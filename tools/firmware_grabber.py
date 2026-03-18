@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Navee ST3 Pro Firmware Grabber
-Lädt Firmware-Binaries von der Navee Server-API herunter.
+Lädt Firmware-Binaries von der Navee Server-API herunter und analysiert sie.
 
-API-Basis: https://lj.naveetech.com/tundra-api
-Erkenntnisse aus APK-Dekompilierung (jadx) der offiziellen Navee App.
+API: https://lj.naveetech.com/tundra-api
+Login: email + passwd (imgCode kann leer sein)
+Firmware: POST /vehicle/modelSoftware mit vehicleModelId
 
 Usage: python3 firmware_grabber.py
 """
@@ -12,8 +13,8 @@ Usage: python3 firmware_grabber.py
 import json
 import os
 import re
+import struct
 import sys
-import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -23,13 +24,9 @@ SCRIPT_DIR = Path(__file__).parent
 LOG_FILE = SCRIPT_DIR / "navee_api_log.json"
 FW_DIR = SCRIPT_DIR / "firmware"
 
-BASE_URLS = [
-    "https://lj.naveetech.com/tundra-api",
-    "https://alb.chejiyou.com/tundra-api",
-    "http://naveeap.chejiyou.com/tundra-api",
-]
+BASE_URL = "https://lj.naveetech.com/tundra-api"
 
-HEADERS_BASE = {
+HEADERS = {
     "platform": "android",
     "language": "en",
     "systemVersion": "14",
@@ -40,377 +37,273 @@ HEADERS_BASE = {
     "User-Agent": "okhttp/3.14.9",
 }
 
-# Bekannte PIDs
-PIDS = {
-    23452: "ST3 Pro DE (22 km/h)",
-    23451: "ST3 Pro Global (30 km/h)",
-    23450: "ST3 Global (25 km/h)",
+# Bekannte Modelle
+KNOWN_MODELS = {
+    3801: ("ST3 PRO", "23452", "DE 22 km/h"),
+    3701: ("ST3", "24012", "Global"),
+    4901: ("ST5 Pro", "24412", ""),
 }
 
 api_log = []
-token = None
-base_url = BASE_URLS[0]
 
 
-def log_request(method, url, headers, body, response):
+def log_api(method, url, body, response):
     entry = {
-        "timestamp": datetime.now().isoformat(),
-        "method": method,
-        "url": url,
-        "request_headers": {k: v for k, v in headers.items() if k != "Authorization"},
-        "request_body": body,
-        "status_code": response.status_code,
-        "response_headers": dict(response.headers),
-        "response_body": None,
+        "ts": datetime.now().isoformat(),
+        "method": method, "url": url,
+        "body": body, "status": response.status_code,
     }
     try:
-        entry["response_body"] = response.json()
+        entry["response"] = response.json()
     except Exception:
-        entry["response_body"] = response.text[:2000]
+        entry["response"] = response.text[:2000]
     api_log.append(entry)
-    save_log()
 
 
-def save_log():
-    with open(LOG_FILE, "w") as f:
-        json.dump(api_log, f, indent=2, ensure_ascii=False)
-
-
-def get_headers():
-    h = dict(HEADERS_BASE)
+def api(method, path, token=None, body=None, params=None):
+    url = f"{BASE_URL}{path}"
+    h = dict(HEADERS)
     if token:
         h["Authorization"] = token
-    return h
-
-
-def api_get(path, params=None):
-    url = f"{base_url}{path}"
-    h = get_headers()
-    print(f"\n→ GET {url}")
-    if params:
-        print(f"  Params: {params}")
-    r = requests.get(url, headers=h, params=params, timeout=30)
-    print(f"← {r.status_code}")
-    log_request("GET", url, h, params, r)
+    print(f"\n→ {method} {path}")
+    if body:
+        print(f"  Body: {json.dumps(body)[:200]}")
+    r = getattr(requests, method.lower())(url, headers=h, json=body, params=params, timeout=30)
+    log_api(method, url, body, r)
     try:
         data = r.json()
-        print(f"  Response: {json.dumps(data, indent=2, ensure_ascii=False)[:1000]}")
+        code = data.get("code")
+        msg = data.get("msg", "")
+        if code == 200:
+            print(f"← 200 OK")
+        else:
+            print(f"← {code}: {msg}")
         return data
     except Exception:
-        print(f"  Response (raw): {r.text[:500]}")
+        print(f"← HTTP {r.status_code}: {r.text[:200]}")
         return None
 
 
-def api_post(path, body):
-    url = f"{base_url}{path}"
-    h = get_headers()
-    print(f"\n→ POST {url}")
-    print(f"  Body: {json.dumps(body, indent=2)}")
-    r = requests.post(url, headers=h, json=body, timeout=30)
-    print(f"← {r.status_code}")
-    log_request("POST", url, h, body, r)
-    try:
-        data = r.json()
-        print(f"  Response: {json.dumps(data, indent=2, ensure_ascii=False)[:1000]}")
-        return data
-    except Exception:
-        print(f"  Response (raw): {r.text[:500]}")
-        return None
+def login(email, passwd):
+    """Login — imgCode kann leer sein."""
+    data = api("POST", "/login", body={
+        "email": email, "passwd": passwd, "uuid": "navee-grabber", "imgCode": ""
+    })
+    if data and data.get("code") == 200 and data.get("data"):
+        token = data["data"].get("token")
+        uid = data["data"].get("userId")
+        print(f"  ✅ Login OK — User ID: {uid}")
+        return token
+    return None
 
 
-def try_login(email, password):
-    """Versucht Login mit verschiedenen Feld-Kombinationen und URLs."""
-    global token, base_url
-
-    device_uuid = str(uuid.uuid4())
-
-    login_variants = [
-        ("/login", {"email": email, "passwd": password, "uuid": device_uuid}),
-        ("/loginByUserName", {"userName": email, "passwd": password, "uuid": device_uuid}),
-        ("/login", {"email": email, "password": password, "uuid": device_uuid}),
-        ("/login", {"account": email, "passwd": password, "uuid": device_uuid}),
-        ("/login", {"phone": email, "passwd": password, "uuid": device_uuid}),
-    ]
-
-    for url_base in BASE_URLS:
-        base_url = url_base
-        print(f"\n{'='*60}")
-        print(f"Versuche Base-URL: {base_url}")
-        print(f"{'='*60}")
-
-        for path, body in login_variants:
-            print(f"\n--- Versuch: {path} mit Feldern {list(body.keys())[:3]} ---")
-            try:
-                data = api_post(path, body)
-                if data and data.get("code") == 200 and data.get("data"):
-                    d = data["data"]
-                    token = d.get("token") or d.get("accessToken") or d.get("auth_token")
-                    if token:
-                        print(f"\n✅ LOGIN ERFOLGREICH!")
-                        print(f"   Token: {token[:20]}...")
-                        if d.get("userId"):
-                            print(f"   User ID: {d['userId']}")
-                        if d.get("naveeId"):
-                            print(f"   Navee ID: {d['naveeId']}")
-                        return True
-                    # Token könnte auch im Top-Level sein
-                    for key in ["token", "accessToken", "Authorization"]:
-                        if key in data:
-                            token = data[key]
-                            print(f"\n✅ LOGIN ERFOLGREICH! Token: {token[:20]}...")
-                            return True
-                elif data:
-                    print(f"   Code: {data.get('code')}, Msg: {data.get('msg', 'keine Nachricht')}")
-            except requests.exceptions.ConnectionError as e:
-                print(f"   Verbindungsfehler: {e}")
-            except Exception as e:
-                print(f"   Fehler: {e}")
-
-    return False
-
-
-def get_vehicles():
-    """Listet alle gebundenen Geräte auf."""
-    print(f"\n{'='*60}")
-    print("GERÄTE ABRUFEN")
-    print(f"{'='*60}")
-
-    for path in ["/vehicle/getVehicle", "/vehicle/list", "/device/list"]:
-        data = api_get(path)
-        if data and data.get("code") == 200 and data.get("data"):
-            vehicles = data["data"]
-            if isinstance(vehicles, list):
-                print(f"\n📱 {len(vehicles)} Gerät(e) gefunden:")
-                for i, v in enumerate(vehicles):
-                    print(f"\n  Gerät {i+1}:")
-                    for key in ["mac", "pid", "vehicleName", "model", "sn", "firmwareVersion",
-                                "vehicleModelId", "id", "carNo"]:
-                        if key in v and v[key]:
-                            print(f"    {key}: {v[key]}")
-                    # PID-Info
-                    pid = v.get("pid")
-                    if pid and int(pid) in PIDS:
-                        print(f"    → {PIDS[int(pid)]}")
-                return vehicles
-            elif isinstance(vehicles, dict):
-                print(f"\n📱 Gerät gefunden:")
-                print(f"  {json.dumps(vehicles, indent=2, ensure_ascii=False)[:500]}")
-                return [vehicles]
+def get_models(token):
+    """Alle verfügbaren Modelle abrufen."""
+    data = api("GET", "/vehicle/model", token=token)
+    if data and data.get("code") == 200 and data.get("data"):
+        models = data["data"]
+        print(f"\n📋 {len(models)} Modelle verfügbar:")
+        for m in models:
+            marker = " ← UNSER MODELL" if str(m.get("pid")) == "23452" else ""
+            print(f"  id={m['id']:5} pid={m.get('pid','?'):6} type={m.get('type','?')}{marker}")
+        return models
     return []
 
 
-def check_firmware(vehicle):
-    """Prüft auf Firmware-Updates."""
-    print(f"\n{'='*60}")
-    print("FIRMWARE-CHECK")
-    print(f"{'='*60}")
+def get_vehicles(token):
+    """Gebundene Geräte abrufen."""
+    data = api("GET", "/vehicle/getVehicle", token=token)
+    if data and data.get("code") == 200:
+        vehicles = data.get("data", [])
+        if vehicles:
+            print(f"\n📱 {len(vehicles)} Gerät(e):")
+            for v in vehicles:
+                print(f"  MAC={v.get('mac')} PID={v.get('pid')} Name={v.get('vehicleName')}")
+        else:
+            print("  Keine gebundenen Geräte")
+        return vehicles
+    return []
 
-    vehicle_model_id = vehicle.get("vehicleModelId") or vehicle.get("modelId") or vehicle.get("pid")
 
-    # Alte Versions-Strings um Update zu erzwingen
-    old_versions = [
-        {"meter": "1.0.0", "bldc": "1.0.0", "bms": "1.0.0", "screen": "1.0.0"},
-        {"meter": "0.0.1", "bldc": "0.0.1", "bms": "0.0.1", "screen": "0.0.1"},
-        {"meter": "1004", "bldc": "1004", "bms": "1004", "screen": "1004"},
-        {"meter": "2031001510", "bldc": "2031001510", "bms": "2031001510", "screen": "2031001510"},
-    ]
+def check_firmware(token, model_id, model_name=""):
+    """Firmware-Check mit absichtlich alter Version."""
+    print(f"\n🔍 Firmware-Check für {model_name} (modelId={model_id})...")
+    data = api("POST", "/vehicle/modelSoftware", token=token, body={
+        "vehicleModelId": str(model_id),
+        "meter": "1.0.0", "bldc": "1.0.0", "bms": "1.0.0", "screen": "1.0.0"
+    })
+    if not data or data.get("code") != 200 or not data.get("data"):
+        return []
 
-    firmware_urls = []
-
-    for versions in old_versions:
-        body = {"vehicleModelId": str(vehicle_model_id)}
-        body.update(versions)
-
-        print(f"\n--- Versuch mit Versionen: {versions['meter']} ---")
-        data = api_post("/vehicle/modelSoftware", body)
-
-        if data and data.get("code") == 200 and data.get("data"):
-            fw_data = data["data"]
-            for component in ["meterList", "bldcList", "bmsList", "screenList"]:
-                items = fw_data.get(component, [])
-                if items:
-                    print(f"\n  🔧 {component}:")
-                    for item in items:
-                        version = item.get("version", "?")
-                        url = item.get("fileUrl") or item.get("url") or item.get("downloadUrl")
-                        size = item.get("fileSize", "?")
-                        print(f"    Version: {version}, Size: {size}, URL: {url}")
-                        if url:
-                            firmware_urls.append({
-                                "component": component.replace("List", ""),
-                                "version": version,
-                                "url": url,
-                                "size": size,
-                            })
-
-        if firmware_urls:
-            break
-
-    # Fallback: direkte Firmware-Endpoints
-    if not firmware_urls:
-        print("\n--- Fallback: direkte Firmware-Endpoints ---")
-        for path in ["/firmware/check", "/firmware/latest"]:
-            params = {
-                "pid": vehicle.get("pid", "23452"),
-                "version": "1.0.0",
-                "model": "ST3PRO",
+    fw_data = data["data"]
+    firmware = []
+    for component in ["meterList", "bldcList", "bmsList", "screenList"]:
+        for item in fw_data.get(component, []):
+            fw = {
+                "component": component.replace("List", ""),
+                "version": item.get("vn", "?"),
+                "url": item.get("fileUrl", ""),
+                "notes": item.get("context", ""),
             }
-            data = api_get(path, params)
-            if data and data.get("data"):
-                url = None
-                d = data["data"]
-                if isinstance(d, dict):
-                    url = d.get("fileUrl") or d.get("url") or d.get("downloadUrl")
-                if url:
-                    firmware_urls.append({"component": "firmware", "version": "?", "url": url, "size": "?"})
-
-    return firmware_urls
+            if fw["url"]:
+                print(f"  🔧 {fw['component']} v{fw['version']}: {fw['notes'][:60]}")
+                firmware.append(fw)
+    return firmware
 
 
 def download_firmware(fw_list):
-    """Lädt Firmware-Binaries herunter."""
-    print(f"\n{'='*60}")
-    print("FIRMWARE DOWNLOAD")
-    print(f"{'='*60}")
-
+    """Firmware-Binaries herunterladen."""
     FW_DIR.mkdir(exist_ok=True)
-
+    paths = []
     for fw in fw_list:
-        url = fw["url"]
-        component = fw["component"]
-        version = fw["version"]
-        filename = f"navee_{component}_v{version}.bin".replace("/", "_").replace(" ", "_")
+        filename = f"navee_{fw['component']}_v{fw['version']}.bin"
         filepath = FW_DIR / filename
-
-        print(f"\n⬇️  Lade {component} v{version}...")
-        print(f"   URL: {url}")
-
-        try:
-            r = requests.get(url, timeout=60, stream=True)
-            if r.status_code == 200:
-                with open(filepath, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        f.write(chunk)
-                size = filepath.stat().st_size
-                print(f"   ✅ Gespeichert: {filepath} ({size} Bytes)")
-                analyze_firmware(filepath)
-            else:
-                print(f"   ❌ Download fehlgeschlagen: HTTP {r.status_code}")
-        except Exception as e:
-            print(f"   ❌ Fehler: {e}")
+        print(f"\n⬇️  {fw['component']} v{fw['version']}...")
+        r = requests.get(fw["url"], timeout=60)
+        if r.status_code == 200:
+            filepath.write_bytes(r.content)
+            print(f"  ✅ {filepath} ({len(r.content)} Bytes)")
+            paths.append(filepath)
+        else:
+            print(f"  ❌ HTTP {r.status_code}")
+    return paths
 
 
 def analyze_firmware(filepath):
-    """Analysiert eine Firmware-Binary."""
-    print(f"\n{'='*60}")
-    print(f"ANALYSE: {filepath.name}")
-    print(f"{'='*60}")
-
+    """Firmware-Binary analysieren."""
     data = filepath.read_bytes()
     size = len(data)
-    print(f"Dateigröße: {size} Bytes ({size/1024:.1f} KB)")
+    print(f"\n{'='*60}")
+    print(f"ANALYSE: {filepath.name} ({size} Bytes, {size/1024:.1f} KB)")
+    print(f"{'='*60}")
 
-    # Hex-Dump erste 256 Bytes
-    print(f"\nErste 256 Bytes:")
-    for i in range(0, min(256, size), 16):
-        hex_part = " ".join(f"{b:02X}" for b in data[i:i+16])
-        ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in data[i:i+16])
-        print(f"  {i:04X}: {hex_part:<48s} {ascii_part}")
+    # Header
+    header_str = data[:16].decode("latin-1")
+    print(f"\nHeader: {header_str!r}")
+    print(f"  Modell-ID: {data[:5].decode('latin-1')}")
+    print(f"  Typ-Byte: 0x{data[6]:02X}")
+    print(f"  Version: {data[7:15].decode('latin-1')}")
+
+    # Hex-Dump erste 128 Bytes
+    print(f"\nHex-Dump (erste 128 Bytes):")
+    for i in range(0, min(128, size), 16):
+        h = " ".join(f"{b:02X}" for b in data[i:i+16])
+        a = "".join(chr(b) if 32 <= b < 127 else "." for b in data[i:i+16])
+        print(f"  {i:04X}: {h:<48s} {a}")
 
     # String-Suche
     print(f"\nString-Suche:")
-    search_strings = ["23452", "23451", "speed", "limit", "pid", "max", "ST3", "N65C", "NAVEE", "navee"]
     text = data.decode("latin-1")
-    for s in search_strings:
-        positions = [m.start() for m in re.finditer(re.escape(s), text, re.IGNORECASE)]
-        if positions:
-            print(f"  '{s}' gefunden an Offsets: {positions[:10]}")
-            for pos in positions[:3]:
-                ctx_start = max(0, pos - 8)
-                ctx_end = min(size, pos + len(s) + 8)
-                ctx_hex = " ".join(f"{b:02X}" for b in data[ctx_start:ctx_end])
-                print(f"    Kontext: {ctx_hex}")
+    searches = {
+        "Speed-relevante": ["speed", "limit", "max_speed", "speed_limit", "velocity", "kmh", "km/h"],
+        "Modell/PID": ["23452", "23451", "ST3", "T2202", "pid"],
+        "Konfiguration": ["config", "setting", "param", "mode", "eco", "sport"],
+        "Navee": ["NAVEE", "navee", "Navee"],
+        "Version": ["1004", "2031", "version", "firmware"],
+    }
+    for category, terms in searches.items():
+        found_any = False
+        for s in terms:
+            positions = [m.start() for m in re.finditer(re.escape(s), text, re.IGNORECASE)]
+            if positions:
+                if not found_any:
+                    print(f"\n  [{category}]")
+                    found_any = True
+                print(f"    \"{s}\" × {len(positions)} bei: {positions[:8]}")
+                for pos in positions[:3]:
+                    # Extrahiere lesbaren Kontext
+                    ctx_start = max(0, pos - 16)
+                    ctx_end = min(size, pos + len(s) + 32)
+                    ctx_bytes = data[ctx_start:ctx_end]
+                    ctx_str = "".join(chr(b) if 32 <= b < 127 else "." for b in ctx_bytes)
+                    print(f"      → \"{ctx_str}\"")
 
-    # PID-Suche (23452 = 0x5B9C)
-    print(f"\nPID 23452 (0x5B9C) Suche:")
-    pid_be = bytes([0x5B, 0x9C])
-    pid_le = bytes([0x9C, 0x5B])
-    for label, pattern in [("Big-Endian", pid_be), ("Little-Endian", pid_le)]:
-        pos = 0
-        found = []
-        while True:
-            pos = data.find(pattern, pos)
-            if pos == -1:
-                break
-            found.append(pos)
-            pos += 1
-        if found:
-            print(f"  {label}: gefunden an Offsets {found[:10]}")
-            for p in found[:3]:
-                ctx = data[max(0, p-4):p+6]
-                print(f"    Kontext: {' '.join(f'{b:02X}' for b in ctx)}")
+    # PID-Pattern
+    print(f"\nPID 23452 als Bytes:")
+    for label, pat in [
+        ("0x5B9C (BE)", bytes([0x5B, 0x9C])),
+        ("0x9C5B (LE)", bytes([0x9C, 0x5B])),
+        ("ASCII '23452'", b"23452"),
+    ]:
+        pos = data.find(pat)
+        if pos >= 0:
+            ctx = data[max(0, pos-4):pos+len(pat)+4]
+            print(f"  {label}: Offset 0x{pos:04X} — {' '.join(f'{b:02X}' for b in ctx)}")
+        else:
+            print(f"  {label}: nicht gefunden")
 
-    # Speed-Limit Suche (0x16 = 22 in verdächtigen Kontexten)
-    print(f"\nSpeed-Limit Kontexte (Byte 0x16 = 22 dez):")
-    count = 0
-    for i in range(len(data) - 4):
+    # Speed-Wert Suche: 22 (0x16) in verdächtigen Kontexten
+    print(f"\nSpeed-Limit Kandidaten (Byte 0x16=22 in Config-Kontexten):")
+    candidates = []
+    for i in range(2, len(data) - 2):
         if data[i] == 0x16:
-            # Suche Kontexte die nach Konfiguration aussehen
-            ctx = data[max(0, i-4):i+5]
-            # Interessant wenn umgeben von kleinen Werten (0-100)
-            if all(b < 128 for b in ctx):
-                if count < 20:
-                    print(f"  Offset 0x{i:04X}: {' '.join(f'{b:02X}' for b in ctx)}")
-                count += 1
-    print(f"  ({count} Vorkommen gesamt)")
+            neighbors = data[max(0, i-2):i+3]
+            # Interessant wenn umgeben von kleinen Werten (potenzielle Konfig-Tabelle)
+            if all(b < 80 for b in neighbors):
+                ctx = data[max(0, i-8):i+9]
+                candidates.append((i, ctx))
+    for i, ctx in candidates[:15]:
+        print(f"  0x{i:04X}: {' '.join(f'{b:02X}' for b in ctx)}")
+    print(f"  ({len(candidates)} Kandidaten gesamt)")
+
+    # Suche nach Speed-Tabellen (aufeinanderfolgende kleine Werte)
+    print(f"\nMögliche Speed-Tabellen:")
+    for i in range(len(data) - 10):
+        window = data[i:i+8]
+        vals = list(window)
+        # Suche nach aufsteigenden Werten im Bereich 15-50
+        if all(15 <= v <= 50 for v in vals) and vals == sorted(vals) and len(set(vals)) >= 5:
+            print(f"  0x{i:04X}: {' '.join(f'{b:02X}({b})' for b in window)}")
+
+    return data
 
 
 def main():
     print("=" * 60)
-    print("  NAVEE ST3 PRO — FIRMWARE GRABBER")
-    print("  API: https://lj.naveetech.com/tundra-api")
+    print("  NAVEE ST3 PRO — FIRMWARE GRABBER v2")
     print("=" * 60)
 
-    # Credentials
-    print("\nNavee Account Credentials:")
-    email = input("  Email/Username: ").strip()
-    password = input("  Passwort: ").strip()
-
-    if not email or not password:
-        print("❌ Email und Passwort erforderlich!")
+    email = input("\nEmail: ").strip()
+    passwd = input("Passwort: ").strip()
+    if not email or not passwd:
+        print("❌ Credentials erforderlich")
         sys.exit(1)
 
     # Login
-    if not try_login(email, password):
-        print("\n❌ Login fehlgeschlagen mit allen Varianten.")
-        print(f"   Log gespeichert in: {LOG_FILE}")
+    token = login(email, passwd)
+    if not token:
+        print("❌ Login fehlgeschlagen")
         sys.exit(1)
 
-    # Geräte abrufen
-    vehicles = get_vehicles()
+    # Geräte
+    get_vehicles(token)
 
-    if not vehicles:
-        print("\n⚠️  Keine Geräte gefunden. Versuche trotzdem Firmware-Check...")
-        vehicles = [{"pid": "23452", "vehicleModelId": "23452"}]
+    # Modelle
+    models = get_models(token)
 
-    # Firmware für jedes Gerät prüfen
-    all_firmware = []
-    for v in vehicles:
-        fw = check_firmware(v)
-        all_firmware.extend(fw)
+    # Firmware für ST3 Pro (modelId=3801) + andere interessante Modelle
+    target_ids = [
+        (3801, "ST3 PRO (DE)"),
+        (3701, "ST3"),
+    ]
 
-    if all_firmware:
-        print(f"\n🎉 {len(all_firmware)} Firmware-Datei(en) gefunden!")
-        download_firmware(all_firmware)
+    all_fw = []
+    for mid, name in target_ids:
+        fw = check_firmware(token, mid, name)
+        all_fw.extend(fw)
+
+    if not all_fw:
+        print("\n⚠️  Keine Firmware gefunden")
     else:
-        print("\n⚠️  Keine Firmware-Downloads gefunden.")
-        print("   Mögliche Gründe:")
-        print("   - Firmware ist bereits aktuell")
-        print("   - vehicleModelId stimmt nicht")
-        print("   - API-Endpunkt hat sich geändert")
+        print(f"\n🎉 {len(all_fw)} Firmware-Datei(en) gefunden!")
+        paths = download_firmware(all_fw)
+        for p in paths:
+            analyze_firmware(p)
 
-    print(f"\n📄 Vollständiger API-Log: {LOG_FILE}")
-    save_log()
+    # Log speichern
+    with open(LOG_FILE, "w") as f:
+        json.dump(api_log, f, indent=2, ensure_ascii=False)
+    print(f"\n📄 API-Log: {LOG_FILE}")
 
 
 if __name__ == "__main__":

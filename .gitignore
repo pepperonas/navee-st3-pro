@@ -32,3 +32,5 @@ Thumbs.db
 __pycache__/
 *.pyc
 .venv/
+tools/firmware/
+tools/navee_api_log.json

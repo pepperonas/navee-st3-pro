@@ -300,6 +300,66 @@ Da UART-Manipulation erfolglos war, bleiben folgende Optionen:
 
 **Empfehlung:** Controller-Firmware RE als nächster vielversprechender Ansatz.
 
+---
+
+## Firmware-Download & Analyse
+
+### API-Zugang
+
+Firmware-Binaries können über die Navee Server-API heruntergeladen werden:
+
+```bash
+python3 tools/firmware_grabber.py
+```
+
+**API-Details:**
+- Base URL: `https://lj.naveetech.com/tundra-api`
+- Login: `POST /login` mit `email`, `passwd`, `imgCode` (kann leer sein!)
+- Modelle: `GET /vehicle/model` → ST3 PRO hat `vehicleModelId=3801`, `pid=23452`
+- Firmware: `POST /vehicle/modelSoftware` mit `vehicleModelId` + alte Versionsstrings
+
+### Verfügbare Firmware-Komponenten (Stand März 2026)
+
+| Komponente | Version | Größe | Beschreibung |
+|-----------|---------|-------|--------------|
+| **Meter** (Dashboard) | 2.0.3.1 | 135 KB | ARM Thumb Code, enthält Speed-Limit-Logik |
+| **BMS** (Batterie) | 1.0.0.4 | 24 KB | Batterie-Management, keine Speed-Daten |
+
+### Firmware-Header-Format
+
+```
+Offset 0x00: Modell-String (z.B. "T22020" für Meter, "T24180" für BMS)
+Offset 0x06: Typ-Byte (0x01=Meter, 0x03=BMS)
+Offset 0x07: Version-String (z.B. "00030001")
+Offset 0x10: Code-Start-Offset + Größe
+Ab ~0x100:   ARM Thumb Maschinencode (nach FF-Padding)
+```
+
+### Analyse-Ergebnisse: Meter-Firmware
+
+Die Meter-Firmware (Dashboard-Controller) enthält die Speed-Limit-Logik:
+
+**Gefundene Strings:**
+```
+"reading speed info"
+"reading speed set info"
+"s max speed state"
+"speed limit %d"            ← Speed-Limit als Variable!
+"st_speed_limit = %d"       ← Struct-Member
+"NAVEE"
+"NAVEE - Find"
+```
+
+**Bedeutung:** Das Speed-Limit ist eine **Variable** (`st_speed_limit`), kein hardcodierter Wert. Es wird zur Laufzeit gesetzt — vermutlich basierend auf der PID. Durch Patchen der Firmware könnte der Initialisierungswert geändert werden.
+
+### Nächste Schritte: Firmware-RE
+
+1. **ARM Thumb Disassemblierung** — Ghidra oder radare2 mit Cortex-M Profil
+2. **`st_speed_limit` Referenzen** finden — wo wird der Wert gesetzt?
+3. **PID-Check lokalisieren** — wo wird PID 23452 geprüft und das 22 km/h Limit zugewiesen?
+4. **Patch erstellen** — Limit-Wert von 22 auf gewünschten Wert ändern
+5. **OTA-Flash** — Gepatchte Firmware über BLE XMODEM an den Scooter senden
+
 ### Sicherheitshinweise
 
 > **Achtung:** Die Akku-Leitungen (Rot/Blau) führen **53 V DC**. Kurzschluss oder Berührung mit Logik-Bauteilen zerstört sofort den Mikrocontroller und kann zu Bränden führen. Nur die Signalleitungen (Gelb/Grün) und GND (Schwarz) verwenden!

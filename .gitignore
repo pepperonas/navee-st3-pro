@@ -26,3 +26,4 @@ tools/*.log
 tools/navee_api_log.json
 *.pcap
 *.btsnoop
+__pycache__/

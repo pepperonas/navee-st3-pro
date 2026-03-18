@@ -17308,5 +17308,621 @@
         "event": "flash_failed"
       }
     ]
+  },
+  {
+    "session_start": "2026-03-18T23:02:05.894686",
+    "session_end": "2026-03-18T23:02:39.754011",
+    "total_events": 46,
+    "events": [
+      {
+        "ts": "2026-03-18T23:02:05.894709",
+        "elapsed_s": 0.0,
+        "event": "session_start",
+        "mode": "flash",
+        "dry_run": false,
+        "firmware": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin"
+      },
+      {
+        "ts": "2026-03-18T23:02:05.992442",
+        "elapsed_s": 0.1,
+        "event": "firmware_analyzed",
+        "path": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "filename": "navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "size": 138240,
+        "size_kb": 135.0,
+        "md5": "07ef6eeba20727ce9e042752b9923331",
+        "sha256": "543fa2c09a8b3ea6436fa4efe3182133011a6106464c41b15ee20671b9888c80",
+        "crc16": 38641,
+        "blocks": 1080,
+        "model_string": "T2202",
+        "type_byte": 1,
+        "type_name": "Meter (Dashboard)",
+        "version_string": "00030001",
+        "version_readable": "Build 3.1 (v2.0.3.1)"
+      },
+      {
+        "ts": "2026-03-18T23:02:05.992478",
+        "elapsed_s": 0.1,
+        "event": "scan_start",
+        "timeout": 15.0
+      },
+      {
+        "ts": "2026-03-18T23:02:21.136194",
+        "elapsed_s": 15.24,
+        "event": "scan_found",
+        "name": "NAVEE",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T23:02:21.137854",
+        "elapsed_s": 15.24,
+        "event": "connect_start",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T23:02:23.497272",
+        "elapsed_s": 17.6,
+        "event": "connect_ok",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T23:02:23.554534",
+        "elapsed_s": 17.66,
+        "event": "auth_start",
+        "device_id": "88 00 02 77 53 ED"
+      },
+      {
+        "ts": "2026-03-18T23:02:23.554585",
+        "elapsed_s": 17.66,
+        "event": "ble_write",
+        "data": "55 AA 00 30 09 01 00 88 00 02 77 53 ED 00 7A FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:02:23.645105",
+        "elapsed_s": 17.75,
+        "event": "ble_notify",
+        "cmd": "0x30",
+        "data": "00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:23.645390",
+        "elapsed_s": 17.75,
+        "event": "auth_ok"
+      },
+      {
+        "ts": "2026-03-18T23:02:24.097118",
+        "elapsed_s": 18.2,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:24.605277",
+        "elapsed_s": 18.71,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:24.646797",
+        "elapsed_s": 18.75,
+        "event": "ble_write",
+        "data": "55 AA 00 73 00 72 FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:02:24.694954",
+        "elapsed_s": 18.8,
+        "event": "ble_notify",
+        "cmd": "0x73",
+        "data": "00 32 30 33 31 30 30 31 35 31 30 30 34",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:24.695071",
+        "elapsed_s": 18.8,
+        "event": "firmware_version",
+        "version": "203100151004"
+      },
+      {
+        "ts": "2026-03-18T23:02:24.695094",
+        "elapsed_s": 18.8,
+        "event": "ble_write",
+        "data": "55 AA 00 74 00 73 FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:02:24.754516",
+        "elapsed_s": 18.86,
+        "event": "ble_notify",
+        "cmd": "0x74",
+        "data": "00 54 32 33 34 35 35 34 52 44 45 34 4A 30 30 36 33 38 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:24.754625",
+        "elapsed_s": 18.86,
+        "event": "serial_number",
+        "serial": "T234554RDE4J00638"
+      },
+      {
+        "ts": "2026-03-18T23:02:24.754651",
+        "elapsed_s": 18.86,
+        "event": "ble_write",
+        "data": "55 AA 00 70 00 6F FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:02:24.815041",
+        "elapsed_s": 18.92,
+        "event": "ble_notify",
+        "cmd": "0x70",
+        "data": "00 01 03 00 00 00 1E 00 01 01 00 01 00 00 02 00 01 00 00 00 03 00 00 00 00 00 16 00 00 00 00 00 00 00 00 01 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:24.815166",
+        "elapsed_s": 18.92,
+        "event": "vehicle_settings",
+        "settings": {
+          "drive_mode": "ECO",
+          "lock_status": "UNLOCKED",
+          "cruise_control": false,
+          "tail_light": false,
+          "ers_level": 30,
+          "mileage_unit": "KM",
+          "auto_headlight": true,
+          "tcs": false,
+          "turn_sound": false,
+          "max_speed_kmh": 22
+        }
+      },
+      {
+        "ts": "2026-03-18T23:02:27.259582",
+        "elapsed_s": 21.36,
+        "event": "dfu_enter_start",
+        "mcu_type": 3
+      },
+      {
+        "ts": "2026-03-18T23:02:27.259924",
+        "elapsed_s": 21.37,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:27.260008",
+        "elapsed_s": 21.37,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:27.260047",
+        "elapsed_s": 21.37,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:27.260084",
+        "elapsed_s": 21.37,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:27.260117",
+        "elapsed_s": 21.37,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:27.563673",
+        "elapsed_s": 21.67,
+        "event": "dfu_enter_sent",
+        "cmd": "down dfu_start 3"
+      },
+      {
+        "ts": "2026-03-18T23:02:27.606089",
+        "elapsed_s": 21.71,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:27.665157",
+        "elapsed_s": 21.77,
+        "event": "dfu_enter_ok"
+      },
+      {
+        "ts": "2026-03-18T23:02:28.666612",
+        "elapsed_s": 22.77,
+        "event": "dfu_ble_rand_sent"
+      },
+      {
+        "ts": "2026-03-18T23:02:30.668036",
+        "elapsed_s": 24.77,
+        "event": "dfu_cipher_received",
+        "status": "0x00",
+        "length": 16,
+        "hex": "08 D0 56 1B B2 4E 2C 02 69 AA AD 25 2F CA 74 67"
+      },
+      {
+        "ts": "2026-03-18T23:02:30.668216",
+        "elapsed_s": 24.77,
+        "event": "dfu_ble_key_sent",
+        "method": "XOR"
+      },
+      {
+        "ts": "2026-03-18T23:02:32.668416",
+        "elapsed_s": 26.77,
+        "event": "dfu_key_exchange_ok"
+      },
+      {
+        "ts": "2026-03-18T23:02:32.768872",
+        "elapsed_s": 26.87,
+        "event": "xmodem_ready"
+      },
+      {
+        "ts": "2026-03-18T23:02:32.769519",
+        "elapsed_s": 26.87,
+        "event": "flash_start",
+        "blocks": 1080,
+        "size": 138240,
+        "dry_run": false
+      },
+      {
+        "ts": "2026-03-18T23:02:38.341236",
+        "elapsed_s": 32.45,
+        "event": "block_failed",
+        "block": 73
+      },
+      {
+        "ts": "2026-03-18T23:02:38.647406",
+        "elapsed_s": 32.75,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 40 CB 00 00 0A 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:38.692540",
+        "elapsed_s": 32.8,
+        "event": "block_failed",
+        "block": 74
+      },
+      {
+        "ts": "2026-03-18T23:02:39.047877",
+        "elapsed_s": 33.15,
+        "event": "block_failed",
+        "block": 75
+      },
+      {
+        "ts": "2026-03-18T23:02:39.155077",
+        "elapsed_s": 33.26,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:39.399079",
+        "elapsed_s": 33.5,
+        "event": "block_failed",
+        "block": 76
+      },
+      {
+        "ts": "2026-03-18T23:02:39.636062",
+        "elapsed_s": 33.74,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 40 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:02:39.749504",
+        "elapsed_s": 33.85,
+        "event": "block_failed",
+        "block": 77
+      },
+      {
+        "ts": "2026-03-18T23:02:39.749683",
+        "elapsed_s": 33.86,
+        "event": "transfer_aborted",
+        "reason": "too_many_failures",
+        "failed": 5,
+        "successful": 72
+      },
+      {
+        "ts": "2026-03-18T23:02:39.749792",
+        "elapsed_s": 33.86,
+        "event": "flash_failed"
+      }
+    ]
+  },
+  {
+    "session_start": "2026-03-18T23:04:38.617430",
+    "session_end": "2026-03-18T23:05:06.787782",
+    "total_events": 37,
+    "events": [
+      {
+        "ts": "2026-03-18T23:04:38.617447",
+        "elapsed_s": 0.0,
+        "event": "session_start",
+        "mode": "flash",
+        "dry_run": false,
+        "firmware": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin"
+      },
+      {
+        "ts": "2026-03-18T23:04:38.715832",
+        "elapsed_s": 0.1,
+        "event": "firmware_analyzed",
+        "path": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "filename": "navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "size": 138240,
+        "size_kb": 135.0,
+        "md5": "07ef6eeba20727ce9e042752b9923331",
+        "sha256": "543fa2c09a8b3ea6436fa4efe3182133011a6106464c41b15ee20671b9888c80",
+        "crc16": 38641,
+        "blocks": 1080,
+        "model_string": "T2202",
+        "type_byte": 1,
+        "type_name": "Meter (Dashboard)",
+        "version_string": "00030001",
+        "version_readable": "Build 3.1 (v2.0.3.1)"
+      },
+      {
+        "ts": "2026-03-18T23:04:38.715860",
+        "elapsed_s": 0.1,
+        "event": "scan_start",
+        "timeout": 15.0
+      },
+      {
+        "ts": "2026-03-18T23:04:53.867062",
+        "elapsed_s": 15.25,
+        "event": "scan_found",
+        "name": "NAVEE",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T23:04:53.867608",
+        "elapsed_s": 15.25,
+        "event": "connect_start",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T23:04:56.912579",
+        "elapsed_s": 18.3,
+        "event": "connect_ok",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T23:04:56.970988",
+        "elapsed_s": 18.35,
+        "event": "auth_start",
+        "device_id": "88 00 02 77 53 ED"
+      },
+      {
+        "ts": "2026-03-18T23:04:56.971064",
+        "elapsed_s": 18.35,
+        "event": "ble_write",
+        "data": "55 AA 00 30 09 01 00 88 00 02 77 53 ED 00 7A FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:04:57.030776",
+        "elapsed_s": 18.41,
+        "event": "ble_notify",
+        "cmd": "0x30",
+        "data": "00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:04:57.030951",
+        "elapsed_s": 18.41,
+        "event": "auth_ok"
+      },
+      {
+        "ts": "2026-03-18T23:04:57.510936",
+        "elapsed_s": 18.89,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 10 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:04:58.021646",
+        "elapsed_s": 19.4,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:04:58.032380",
+        "elapsed_s": 19.41,
+        "event": "ble_write",
+        "data": "55 AA 00 73 00 72 FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:04:58.080593",
+        "elapsed_s": 19.46,
+        "event": "ble_notify",
+        "cmd": "0x73",
+        "data": "00 32 30 33 31 30 30 31 35 31 30 30 34",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:04:58.080710",
+        "elapsed_s": 19.46,
+        "event": "firmware_version",
+        "version": "203100151004"
+      },
+      {
+        "ts": "2026-03-18T23:04:58.080731",
+        "elapsed_s": 19.46,
+        "event": "ble_write",
+        "data": "55 AA 00 74 00 73 FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:04:58.140915",
+        "elapsed_s": 19.52,
+        "event": "ble_notify",
+        "cmd": "0x74",
+        "data": "00 54 32 33 34 35 35 34 52 44 45 34 4A 30 30 36 33 38 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:04:58.141024",
+        "elapsed_s": 19.52,
+        "event": "serial_number",
+        "serial": "T234554RDE4J00638"
+      },
+      {
+        "ts": "2026-03-18T23:04:58.141045",
+        "elapsed_s": 19.52,
+        "event": "ble_write",
+        "data": "55 AA 00 70 00 6F FE FD"
+      },
+      {
+        "ts": "2026-03-18T23:04:58.201921",
+        "elapsed_s": 19.58,
+        "event": "ble_notify",
+        "cmd": "0x70",
+        "data": "00 01 03 00 00 00 1E 00 01 01 00 01 00 00 02 00 01 00 00 00 03 00 00 00 00 00 16 00 00 00 00 00 00 00 00 01 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:04:58.202181",
+        "elapsed_s": 19.58,
+        "event": "vehicle_settings",
+        "settings": {
+          "drive_mode": "ECO",
+          "lock_status": "UNLOCKED",
+          "cruise_control": false,
+          "tail_light": false,
+          "ers_level": 30,
+          "mileage_unit": "KM",
+          "auto_headlight": true,
+          "tcs": false,
+          "turn_sound": false,
+          "max_speed_kmh": 22
+        }
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032442",
+        "elapsed_s": 22.42,
+        "event": "dfu_enter_start",
+        "mcu_type": 3
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032622",
+        "elapsed_s": 22.42,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 40 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032686",
+        "elapsed_s": 22.42,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032723",
+        "elapsed_s": 22.42,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 40 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032760",
+        "elapsed_s": 22.42,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032791",
+        "elapsed_s": 22.42,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 40 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:05:01.032827",
+        "elapsed_s": 22.42,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T23:05:01.335496",
+        "elapsed_s": 22.72,
+        "event": "dfu_enter_sent",
+        "cmd": "down dfu_start 3"
+      },
+      {
+        "ts": "2026-03-18T23:05:01.437210",
+        "elapsed_s": 22.82,
+        "event": "dfu_enter_ok"
+      },
+      {
+        "ts": "2026-03-18T23:05:02.440237",
+        "elapsed_s": 23.82,
+        "event": "dfu_ble_rand_sent"
+      },
+      {
+        "ts": "2026-03-18T23:05:04.441862",
+        "elapsed_s": 25.82,
+        "event": "dfu_cipher_received",
+        "status": "0x00",
+        "length": 16,
+        "hex": "8F 61 A0 51 2E 14 6C 23 A4 66 D4 0F 9C 66 C6 1F"
+      },
+      {
+        "ts": "2026-03-18T23:05:04.444305",
+        "elapsed_s": 25.83,
+        "event": "dfu_ble_key_sent",
+        "method": "XOR"
+      },
+      {
+        "ts": "2026-03-18T23:05:06.445793",
+        "elapsed_s": 27.83,
+        "event": "dfu_key_exchange_ok"
+      },
+      {
+        "ts": "2026-03-18T23:05:06.546750",
+        "elapsed_s": 27.93,
+        "event": "xmodem_ready"
+      },
+      {
+        "ts": "2026-03-18T23:05:06.548240",
+        "elapsed_s": 27.93,
+        "event": "flash_start",
+        "blocks": 1080,
+        "size": 138240,
+        "dry_run": false
+      },
+      {
+        "ts": "2026-03-18T23:05:06.787335",
+        "elapsed_s": 28.17,
+        "event": "flash_failed"
+      }
+    ]
   }
 ]

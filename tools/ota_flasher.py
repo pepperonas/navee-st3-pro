@@ -828,9 +828,13 @@ class NaveeOTAFlasher:
                      elapsed_s=round(elapsed, 1), rate_bps=round(rate, 0))
 
         if not self.dry_run:
-            # EOT senden — exakt wie test_eot.py (der rsq dfu_ok empfangen hat)
-            print("  Sending EOT (0x04)...")
+            # Pause nach Transfer — BLE-Stack muss Notifications wieder verarbeiten können
+            print("  Warte 3s vor EOT (BLE-Stack stabilisieren)...")
+            await asyncio.sleep(3.0)
+            # Alle aufgestauten Responses leeren
             self.last_responses.clear()
+
+            print("  Sending EOT (0x04)...")
             dfu_result = None
 
             for eot_attempt in range(5):

@@ -828,8 +828,7 @@ class NaveeOTAFlasher:
                      elapsed_s=round(elapsed, 1), rate_bps=round(rate, 0))
 
         if not self.dry_run:
-            # EOT senden — test_eot.py zeigte: rsq dfu_ok kommt nach ~1.5s
-            # OHNE vorheriges ACK! Scooter rebootet danach sofort.
+            # EOT senden — exakt wie test_eot.py (der rsq dfu_ok empfangen hat)
             print("  Sending EOT (0x04)...")
             self.last_responses.clear()
             dfu_result = None
@@ -840,13 +839,17 @@ class NaveeOTAFlasher:
                     await self.client.write_gatt_char(
                         WRITE_UUID, bytes([XMODEM_EOT]), response=False)
                 except Exception:
-                    break  # BLE disconnected — Scooter hat rebootet
+                    # BLE disconnected — Scooter hat rebootet (normal nach dfu_ok)
+                    if dfu_result is None:
+                        dfu_result = "REBOOT"
+                    break
                 self.log.log("eot_sent", attempt=eot_attempt)
 
-                # 3s warten, dabei auf ACK UND dfu_ok prüfen
-                for _ in range(30):
+                # 3s warten, Responses einzeln abarbeiten (wie test_eot.py)
+                for wait_tick in range(30):
                     await asyncio.sleep(0.1)
-                    for resp in list(self.last_responses):
+                    while self.last_responses:
+                        resp = self.last_responses.pop(0)
                         if b"dfu_ok" in resp:
                             dfu_result = "OK"
                             print(f"    >>> rsq dfu_ok empfangen! <<<")
@@ -855,13 +858,15 @@ class NaveeOTAFlasher:
                             dfu_result = "ERROR"
                             print(f"    >>> rsq dfu_error! <<<")
                             break
+                        if XMODEM_ACK in resp and len(resp) <= 3:
+                            print(f"    ACK")
                     if dfu_result:
                         break
                 if dfu_result:
                     break
 
-            if dfu_result == "OK":
-                print("\n  FIRMWARE ERFOLGREICH INSTALLIERT!")
+            if dfu_result == "OK" or dfu_result == "REBOOT":
+                print(f"\n  FIRMWARE INSTALLIERT! {'(Scooter rebootet)' if dfu_result == 'REBOOT' else ''}")
                 self.log.log("dfu_complete_ok")
             elif dfu_result == "ERROR":
                 print("\n  FIRMWARE ABGELEHNT!")

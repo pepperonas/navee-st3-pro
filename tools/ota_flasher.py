@@ -1262,42 +1262,63 @@ WARNING: Flashing firmware can permanently brick your scooter!
                 return
 
             # --- DFU Entry nach APK-Protokoll (Text-Commands) ---
+
+            # Responses leeren (Telemetrie-Notifications filtern)
+            flasher.last_responses.clear()
+            await asyncio.sleep(0.5)
+            flasher.last_responses.clear()
+
             print("\n[1] Sende 'down dfu_start 3\\r' (Meter MCU)...")
             dfu_cmd = b"down dfu_start 3\r"
-            await flasher.client.write_gatt_char(WRITE_CHAR, dfu_cmd, response=False)
-            flasher.log.log("dfu_test_send", cmd="down dfu_start 3")
-            print(f"  TX: {dfu_cmd!r}")
+            try:
+                await flasher.client.write_gatt_char(WRITE_UUID, dfu_cmd, response=False)
+                flasher.log.log("dfu_test_send", cmd="down dfu_start 3")
+                print(f"  TX: {dfu_cmd!r}")
+            except Exception as e:
+                print(f"  FEHLER beim Senden: {e}")
+                flasher.log.log("dfu_test_send_error", error=str(e))
+                return
 
             # Warte auf Antwort
             print("  Warte auf Response (5s)...")
             await asyncio.sleep(5.0)
 
-            # Prüfe ob Notifications gekommen sind
-            if flasher.last_responses:
-                print(f"  Empfangen: {len(flasher.last_responses)} Response(s)")
-                for i, resp in enumerate(flasher.last_responses[-5:]):
+            # Zeige ALLE Notifications die nach dem DFU-Befehl kamen
+            responses = flasher.last_responses.copy()
+            if responses:
+                print(f"\n  {len(responses)} Response(s) empfangen:")
+                for i, resp in enumerate(responses):
                     raw_hex = " ".join(f"{b:02X}" for b in resp)
                     try:
-                        text = resp.decode('ascii', errors='replace')
+                        text = resp.decode('ascii', errors='replace').strip()
                     except Exception:
                         text = ""
-                    print(f"    [{i}] Hex: {raw_hex}")
-                    if text.strip():
+                    print(f"    [{i+1}] Hex:  {raw_hex}")
+                    if text:
                         print(f"         Text: {text!r}")
+                    # Prüfe auf "ok\r" Response (DFU-Entry Bestätigung)
+                    if b"ok" in resp.lower() if hasattr(resp, 'lower') else b"ok" in resp:
+                        print(f"         >>> 'ok' ERKANNT — DFU-Modus aktiv! <<<")
                     flasher.log.log("dfu_test_response", index=i, hex=raw_hex, text=text)
             else:
-                print("  Keine Response empfangen.")
+                print("\n  Keine Response empfangen.")
                 flasher.log.log("dfu_test_no_response")
 
-            # Alternativ: BLE-Frame-basierter DFU-Start
-            print(f"\n[2] Alternativ: CMD 0x40 mit Meter-Typ...")
-            resp = await flasher._send_cmd(CMD_OTA_START, bytes([0x01]))
-            if resp:
-                print(f"  Response: CMD=0x{resp['cmd']:02X} Data={hex_str(resp['data'])}")
-                flasher.log.log("dfu_test_cmd40", response=hex_str(resp['data']))
-            else:
-                print("  Keine Response auf CMD 0x40.")
-                flasher.log.log("dfu_test_cmd40_no_response")
+            # Nur wenn Schritt 1 keine Antwort gab: CMD 0x40 testen
+            if not responses:
+                flasher.last_responses.clear()
+                print(f"\n[2] Alternativ: CMD 0x40 mit Meter-Typ...")
+                try:
+                    resp = await flasher._send_cmd(CMD_OTA_START, bytes([0x01]))
+                    if resp:
+                        print(f"  Response: CMD=0x{resp['cmd']:02X} Data={hex_str(resp['data'])}")
+                        flasher.log.log("dfu_test_cmd40", response=hex_str(resp['data']))
+                    else:
+                        print("  Keine Response auf CMD 0x40.")
+                        flasher.log.log("dfu_test_cmd40_no_response")
+                except Exception as e:
+                    print(f"  FEHLER: {e}")
+                    flasher.log.log("dfu_test_cmd40_error", error=str(e))
 
             print("\n" + "=" * 60)
             print("  TEST ABGESCHLOSSEN")

@@ -714,6 +714,7 @@ class NaveeOTAFlasher:
         successful_blocks = 0
         failed_blocks = 0
         start_time = time.monotonic()
+        running_seq = 0  # Laufender Zähler wie in APK (DFUProcessor.java)
 
         for block_num in range(1, total_blocks + 1):
             offset = (block_num - 1) * XMODEM_BLOCK_SIZE
@@ -723,10 +724,12 @@ class NaveeOTAFlasher:
             if len(block_data) < XMODEM_BLOCK_SIZE:
                 block_data += bytes([0x1A] * (XMODEM_BLOCK_SIZE - len(block_data)))
 
-            # Build XMODEM block — APK: seq wraps 255→1, never 0
-            seq = block_num % 256
-            if seq == 0:
-                seq = 1
+            # Build XMODEM block — APK: running counter, wraps 255→1, never 0
+            # APK code: i9 = (this.f11642i + 1) % 256; if (i9 == 0) i9 = 1;
+            running_seq = (running_seq + 1) % 256
+            if running_seq == 0:
+                running_seq = 1
+            seq = running_seq
             seq_comp = (~seq) & 0xFF
             crc = crc16_xmodem(block_data)
 

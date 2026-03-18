@@ -7,7 +7,11 @@ from ota_flasher import *
 async def main():
     config = load_config()
     device_id = parse_device_id(config["device_id"])
-    fw_path = Path("firmware/navee_meter_v2.0.3.1_ORIGINAL.bin")
+    # Firmware-Datei als Argument oder Default
+    import sys as _sys
+    fw_name = _sys.argv[1] if len(_sys.argv) > 1 else "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin"
+    fw_path = Path(fw_name)
+    print(f"  Firmware: {fw_path.name}")
     fw_info = analyze_firmware_file(fw_path)
     fw_data = fw_path.read_bytes()
 

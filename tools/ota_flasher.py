@@ -1055,9 +1055,21 @@ class NaveeOTAFlasher:
 
             # --- Step 6: Key Exchange (ble_rand + ble_key) ---
             print("\n[Step 6] Key Exchange...")
+            await asyncio.sleep(1.0)  # Kurz warten nach DFU-Entry
             if self.dry_run:
                 print("  [DRY RUN] Would send ble_rand + ble_key")
             else:
+                # Prüfe ob Verbindung noch steht
+                if not self.client.is_connected:
+                    print("  BLE getrennt nach DFU-Entry. Reconnecting...")
+                    try:
+                        await asyncio.sleep(2.0)
+                        await self.connect(self.device_address)
+                        print("  Reconnect OK!")
+                    except Exception as e:
+                        print(f"  Reconnect fehlgeschlagen: {e}")
+                        return False
+
                 # Schritt 6a: Random anfordern
                 self.last_responses.clear()
                 print("  TX: 'down ble_rand'")
@@ -1130,24 +1142,45 @@ class NaveeOTAFlasher:
                     self.log.log("dfu_ble_rand_no_response")
 
             # --- Step 7: Warte auf XMODEM Ready Signal (0x43 = 'C') ---
-            print("\n[Step 7] Warte auf XMODEM Ready Signal...")
+            print("\n[Step 7] Warte auf XMODEM Ready Signal (0x43)...")
             if self.dry_run:
                 print("  [DRY RUN] Would wait for 0x43 ('C')")
             else:
+                # Prüfe ob Verbindung noch steht
+                if not self.client.is_connected:
+                    print("  BLE-Verbindung getrennt nach Key Exchange!")
+                    print("  Versuche Reconnect...")
+                    try:
+                        await self.connect(self.device_address)
+                        print("  Reconnect OK!")
+                    except Exception as e:
+                        print(f"  Reconnect fehlgeschlagen: {e}")
+                        return False
+
                 self.last_responses.clear()
                 xmodem_ready = False
                 for i in range(100):  # Max 10 Sekunden warten
                     await asyncio.sleep(0.1)
                     for resp in self.last_responses:
-                        if 0x43 in resp or b"C" in resp:
-                            print("  XMODEM Ready Signal empfangen! (0x43 = 'C')")
+                        # Prüfe auf einzelnes Byte 0x43 oder Response die 0x43 enthält
+                        if len(resp) == 1 and resp[0] == 0x43:
+                            xmodem_ready = True
+                            break
+                        if len(resp) <= 3 and 0x43 in resp:
                             xmodem_ready = True
                             break
                     if xmodem_ready:
                         break
 
-                if not xmodem_ready:
-                    print("  Kein XMODEM Ready Signal nach 10s.")
+                if xmodem_ready:
+                    print("  XMODEM Ready! (0x43)")
+                    self.log.log("xmodem_ready")
+                else:
+                    print("  Kein 0x43 Signal nach 10s.")
+                    if self.last_responses:
+                        print("  Empfangene Responses:")
+                        for r in self.last_responses[-5:]:
+                            print(f"    {hex_str(r)}")
                     print("  Versuche trotzdem mit dem Transfer...")
                     self.log.log("xmodem_no_ready_signal")
 

@@ -1,37 +1,28 @@
-# Gradle
+# Gradle / Android
 .gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
-
-# Kotlin
 .kotlin/
-
-# Android
+build/
 local.properties
 *.apk
 *.aab
-*.ap_
 *.dex
 
 # IDE
 .idea/
 *.iml
 .vscode/
-*.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Captures
-*.pcap
-*.btsnoop
-
 # Python
 __pycache__/
 *.pyc
 .venv/
-tools/navee_api_log.json
+
+# Logs & Captures
 tools/*.log
-tools/firmware/navee_meter_code.bin
+tools/navee_api_log.json
+*.pcap
+*.btsnoop

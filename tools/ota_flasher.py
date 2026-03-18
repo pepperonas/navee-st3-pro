@@ -295,11 +295,13 @@ class NaveeOTAFlasher:
         self.serial_number: Optional[str] = None
         self.device_address: Optional[str] = None
         self._notification_buffer = bytearray()
+        self.last_responses: list = []  # Raw notification bytes for debugging
 
     # --- BLE Notification Handler ---
 
     def _on_notify(self, char: BleakGATTCharacteristic, data: bytearray):
         """Handle incoming BLE notifications."""
+        self.last_responses.append(bytes(data))
         self._notification_buffer += data
 
         # Try to parse complete frames from the buffer
@@ -1124,6 +1126,8 @@ WARNING: Flashing firmware can permanently brick your scooter!
                         help="BLE MAC address to connect to directly (skip scan)")
     parser.add_argument("--analyze", action="store_true",
                         help="Analyze firmware file and exit (no BLE needed)")
+    parser.add_argument("--test-dfu-entry", action="store_true",
+                        help="Test DFU mode entry only (no flash, safe abort)")
 
     args = parser.parse_args()
 
@@ -1174,7 +1178,7 @@ WARNING: Flashing firmware can permanently brick your scooter!
         except ValueError:
             pass
 
-    if device_id is None and (args.read_info or args.firmware):
+    if device_id is None and (args.read_info or args.firmware or args.test_dfu_entry):
         print("\nDevice ID required for authentication.")
         print("The Device ID is your 6-byte Navee Account ID (from BT-HCI capture).")
         print("Format: 12 hex characters, e.g., AABBCCDDEEFF")
@@ -1213,6 +1217,98 @@ WARNING: Flashing firmware can permanently brick your scooter!
                 await flasher.read_all_info()
             else:
                 print("Authentication failed.")
+        finally:
+            await flasher.disconnect()
+            flasher.log.save()
+            print(f"\nLog saved: {LOG_FILE}")
+        return
+
+    # --- Test DFU entry mode ---
+    if args.test_dfu_entry:
+        flasher = NaveeOTAFlasher()
+        flasher.log.log("session_start", mode="test_dfu_entry")
+
+        address = args.address
+        if not address:
+            scooters = await flasher.scan()
+            if not scooters:
+                print("No scooters found.")
+                return
+            address = scooters[0].address
+            print(f"  Auto-selecting: {scooters[0].name} [{address}]")
+
+        if not await flasher.connect(address):
+            return
+
+        try:
+            if not await flasher.authenticate(device_id):
+                print("Authentication failed.")
+                return
+
+            await asyncio.sleep(0.5)
+            await flasher.read_all_info()
+
+            print("\n" + "=" * 60)
+            print("  DFU MODE ENTRY TEST")
+            print("  Sendet DFU-Befehle aus der offiziellen APK.")
+            print("  Der Scooter sollte in den Update-Modus wechseln.")
+            print("  KEINE Firmware-Daten werden gesendet.")
+            print("  Nach dem Test: Scooter aus/ein zum Neustart.")
+            print("=" * 60)
+
+            confirm = input("\n  Fortfahren? (j/n): ").strip().lower()
+            if confirm != "j":
+                print("  Abgebrochen.")
+                return
+
+            # --- DFU Entry nach APK-Protokoll (Text-Commands) ---
+            print("\n[1] Sende 'down dfu_start 3\\r' (Meter MCU)...")
+            dfu_cmd = b"down dfu_start 3\r"
+            await flasher.client.write_gatt_char(WRITE_CHAR, dfu_cmd, response=False)
+            flasher.log.log("dfu_test_send", cmd="down dfu_start 3")
+            print(f"  TX: {dfu_cmd!r}")
+
+            # Warte auf Antwort
+            print("  Warte auf Response (5s)...")
+            await asyncio.sleep(5.0)
+
+            # Prüfe ob Notifications gekommen sind
+            if flasher.last_responses:
+                print(f"  Empfangen: {len(flasher.last_responses)} Response(s)")
+                for i, resp in enumerate(flasher.last_responses[-5:]):
+                    raw_hex = " ".join(f"{b:02X}" for b in resp)
+                    try:
+                        text = resp.decode('ascii', errors='replace')
+                    except Exception:
+                        text = ""
+                    print(f"    [{i}] Hex: {raw_hex}")
+                    if text.strip():
+                        print(f"         Text: {text!r}")
+                    flasher.log.log("dfu_test_response", index=i, hex=raw_hex, text=text)
+            else:
+                print("  Keine Response empfangen.")
+                flasher.log.log("dfu_test_no_response")
+
+            # Alternativ: BLE-Frame-basierter DFU-Start
+            print(f"\n[2] Alternativ: CMD 0x40 mit Meter-Typ...")
+            resp = await flasher._send_cmd(CMD_OTA_START, bytes([0x01]))
+            if resp:
+                print(f"  Response: CMD=0x{resp['cmd']:02X} Data={hex_str(resp['data'])}")
+                flasher.log.log("dfu_test_cmd40", response=hex_str(resp['data']))
+            else:
+                print("  Keine Response auf CMD 0x40.")
+                flasher.log.log("dfu_test_cmd40_no_response")
+
+            print("\n" + "=" * 60)
+            print("  TEST ABGESCHLOSSEN")
+            print("  Prüfe den Scooter:")
+            print("    - Hat sich das Display verändert?")
+            print("    - Zeigt er einen Update-Modus?")
+            print("    - Blinkt eine LED?")
+            print("  Falls ja → DFU-Entry funktioniert!")
+            print("  Scooter aus/ein zum normalen Neustart.")
+            print("=" * 60)
+
         finally:
             await flasher.disconnect()
             flasher.log.save()

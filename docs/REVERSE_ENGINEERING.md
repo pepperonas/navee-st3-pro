@@ -131,23 +131,125 @@ Die folgenden Kommandos wurden durch BT-Captures verifiziert:
 
 ---
 
-## Erkenntnisse
+## Erkenntnisse — Chronologie der Speed-Unlock-Versuche
 
-### 22 km/h Firmware-Limit (DE-Markt)
+### Ansatz 1: BLE-Protokoll (❌ gescheitert)
 
-Die wichtigste Erkenntnis des Reverse Engineering:
+**Idee:** Das BLE-Kommando `0x6E` (Set Max Speed) nutzen, um das Limit von 22 km/h zu erhöhen.
 
-- Der Navee ST3 Pro mit **PID 23452** (DE-Markt) hat ein **firmware-seitiges Hard-Limit** von **22 km/h**
-- Dieses Limit ist in Byte 26 der Status-Response (`0x70`) sichtbar als `0x16`
-- Der Befehl `0x6E` (Max Speed setzen) wird vom Scooter zwar mit ACK bestätigt, **ändert aber den Wert nicht**
-- Die Speed-Optionen in der offiziellen App sind PID-abhängig und überschreiten nie das Firmware-Limit
-- Eine Änderung der Höchstgeschwindigkeit wäre nur durch ein **Firmware-Update** möglich (nicht Ziel dieses Projekts)
+**Vorgehen:**
+1. Offizielle Navee APK dekompiliert → Kommando `0x6E` mit Daten `[0x01, km/h]` identifiziert
+2. BLE-Auth implementiert (AES-128-ECB, Device-ID aus BT-Capture)
+3. Auth erfolgreich, Kommando gesendet, Scooter antwortet mit ACK
+
+**Ergebnis:** Kommando wird **syntaktisch akzeptiert** (ACK), aber der Wert in Byte 26 der Status-Response (`0x16` = 22 km/h) **ändert sich nicht**. Das Limit ist per BLE nicht modifizierbar.
+
+---
+
+### Ansatz 2: UART Man-in-the-Middle (❌ gescheitert)
+
+**Idee:** Das Dashboard sendet Speed-Limits über UART an den Motor-Controller (Frame A, Bytes 6-7). Ein Arduino zwischen Dashboard und Controller könnte diese Werte manipulieren.
+
+**Vorgehen:**
+1. UART-Schnittstelle am Dashboard-Stecker identifiziert (grüne Ader, 19200 Baud, 8N1)
+2. Drei Frame-Typen reverse-engineered (siehe [INTERNAL_UART_PROTOCOL.md](INTERNAL_UART_PROTOCOL.md))
+3. Speed-Limit-Kandidaten in Frame A Bytes 6-7 lokalisiert (`0x17`=23, `0x15`=21)
+4. Arduino Nano MitM gebaut: Frames abfangen, Bytes 6-7 auf `0x1E`/`0x1E` (30/30) ändern, Checksum neu berechnen
+
+**Verkabelung:**
+```
+Dashboard (grüne Ader durchtrennen!)
+    └──→ Arduino D2 (SoftSerial RX)
+         Arduino D3 (SoftSerial TX)
+              └──→ Controller
+
+Scooter GND (schwarz) ──→ Arduino GND
+Arduino USB ──→ PC (Stromversorgung + Debug)
+```
+
+**Implementierung:** [`/reverse-engineering/navee_uart_mitm_nano/navee_uart_mitm_nano.ino`](../reverse-engineering/navee_uart_mitm_nano/navee_uart_mitm_nano.ino)
+
+**Ergebnis:**
+- ~2000+ Frames erfolgreich manipuliert (Checksum korrekt, Controller akzeptiert syntaktisch)
+- Realer Fahrtest: **Geschwindigkeit bleibt bei 22 km/h**
+- Der Motor-Controller **ignoriert die UART-Speed-Werte komplett**
+- Frame A Bytes 6/7 sind nur Logging-/Anzeige-Werte ohne sicherheitskritische Funktion
+
+**Fazit:** Das Speed-Limit ist **im Controller-Firmware-Code hardcoded**, nicht vom Dashboard steuerbar.
+
+---
+
+### Ansatz 3: Firmware-Patching (🔬 aktueller Ansatz)
+
+**Idee:** Die Meter-Firmware (Dashboard-Controller) direkt patchen und per OTA flashen.
+
+**Vorgehen:**
+1. Firmware-Binary über die Navee Server-API heruntergeladen (`tools/firmware_grabber.py`)
+2. API: `POST https://lj.naveetech.com/tundra-api/vehicle/modelSoftware` mit `vehicleModelId=3801`
+3. Login mit `imgCode=""` (leerer Captcha-Code funktioniert!)
+4. Meter-Firmware v2.0.3.1 (135 KB, ARM Thumb Code) analysiert
+
+**Kritische Funde in der Meter-Firmware:**
+```
+Offset 0x12E93: "speed limit %d"        ← Speed-Limit als printf-Variable!
+Offset 0x13705: "st_speed_limit = %d"   ← Struct-Member-Name
+Offset 0x13041: "s max speed state"
+Offset 0x130CA: "reading speed set info"
+```
+
+**Bedeutung:** Das Speed-Limit ist eine **Laufzeit-Variable** (`st_speed_limit`) in einem Struct, nicht ein einfacher hardcodierter Wert. Es wird beim Boot basierend auf der PID gesetzt. Durch Patchen des Initialisierungswertes oder der PID-Prüfung in der Firmware kann das Limit geändert werden.
+
+**Firmware-Header-Format:**
+```
+Offset 0x00: Modell-String "T22020" (Meter) / "T24180" (BMS)
+Offset 0x06: Typ-Byte (0x01=Meter, 0x03=BMS)
+Offset 0x07: Version-String "00030001"
+Offset 0x10: Code-Start-Offset + Größe
+Ab ~0x100:   ARM Thumb Maschinencode (Cortex-M, nach FF-Padding)
+```
+
+**Nächste Schritte:**
+1. **Ghidra/radare2** — Firmware als ARM Cortex-M Thumb laden
+2. **`st_speed_limit` Referenzen** finden — wo wird der Wert initialisiert?
+3. **PID-Check lokalisieren** — wo wird PID 23452 gegen eine Speed-Tabelle geprüft?
+4. **Patch erstellen** — Limit-Wert von 22 auf gewünschten Wert ändern
+5. **OTA-Flash** — Gepatchte Firmware über BLE XMODEM senden (128-Byte Blöcke, CRC-16)
+
+**Verfügbare Firmware (Stand März 2026):**
+
+| Komponente | Version | Größe | Beschreibung |
+|-----------|---------|-------|--------------|
+| **Meter** (Dashboard) | 2.0.3.1 | 135 KB | ARM Thumb, enthält Speed-Limit-Logik |
+| **BMS** (Batterie) | 1.0.0.4 | 24 KB | Batterie-Management, keine Speed-Daten |
+
+---
+
+### Zusammenfassung Speed-Limit-Architektur
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    SPEED-LIMIT CHAIN                     │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  BLE App (0x6E)  ──→  ACK'd aber ignoriert        ❌   │
+│                                                         │
+│  UART Frame A    ──→  Bytes 6/7 manipuliert,       ❌   │
+│  (Dashboard→Ctrl)     Controller ignoriert sie          │
+│                                                         │
+│  Meter-Firmware  ──→  st_speed_limit Variable      🔬   │
+│  (ARM Thumb Code)     wird beim Boot aus PID-           │
+│                       Tabelle geladen. Patch             │
+│                       des Initialisierungswertes         │
+│                       ist der vielversprechendste        │
+│                       Ansatz.                            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
 
 ### Protokoll-Stabilität
 
 - Das BLE-Protokoll ist stabil und deterministisch
 - Gleiche Kommandos erzeugen immer die gleichen Ergebnisse
-- Der Scooter antwortet auf unbekannte Kommandos mit einem generischen NACK
 - Keine Zeitabhängigkeiten außer der initialen Auth
 
 ### Authentifizierung

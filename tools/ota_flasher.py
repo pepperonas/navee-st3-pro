@@ -763,23 +763,33 @@ class NaveeOTAFlasher:
                 await asyncio.sleep(0.01)
                 continue
 
-            # Fire-and-Forget: Block senden, minimale Pause, weitermachen
-            # Nur bei NAK/CAN stoppen. ACK wird nicht explizit geprüft.
-            # APK sendet auch schnell hintereinander.
+            # Block senden mit 30ms Pause — schnell genug für 1080 Blöcke
+            # in ~32s, aber langsam genug damit der Scooter verarbeiten kann.
+            # ACK-Check nur auf CAN/NAK, kein explizites ACK-Warten.
             block_ok = False
             try:
                 await self.client.write_gatt_char(
                     WRITE_UUID, bytes(xmodem_block), response=False)
                 block_ok = True
 
-                # Minimale Pause für BLE-Stack (5ms)
-                await asyncio.sleep(0.005)
+                # 30ms Pause — Scooter braucht Zeit zum Flash-Schreiben
+                await asyncio.sleep(0.03)
 
-                # Prüfe nur auf NAK/CAN (Fehler), nicht auf ACK
+                # Prüfe auf CAN/NAK (Fehler)
                 for resp in self.last_responses:
                     if XMODEM_CAN in resp:
                         print(f"\n\n  ABORT: Scooter hat Transfer abgebrochen!")
                         return False
+                    if XMODEM_NAK in resp:
+                        # NAK: Block nochmal senden
+                        block_ok = False
+                        self.last_responses.clear()
+                        await asyncio.sleep(0.05)
+                        await self.client.write_gatt_char(
+                            WRITE_UUID, bytes(xmodem_block), response=False)
+                        await asyncio.sleep(0.03)
+                        block_ok = True
+                        break
                 self.last_responses.clear()
 
             except Exception as e:

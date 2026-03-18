@@ -15191,5 +15191,2122 @@
         "key_idx": 21
       }
     ]
+  },
+  {
+    "session_start": "2026-03-18T22:52:06.718313",
+    "session_end": "2026-03-18T22:53:17.241084",
+    "total_events": 142,
+    "events": [
+      {
+        "ts": "2026-03-18T22:52:06.718328",
+        "elapsed_s": 0.0,
+        "event": "session_start",
+        "mode": "flash",
+        "dry_run": false,
+        "firmware": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin"
+      },
+      {
+        "ts": "2026-03-18T22:52:06.815483",
+        "elapsed_s": 0.1,
+        "event": "firmware_analyzed",
+        "path": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "filename": "navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "size": 138240,
+        "size_kb": 135.0,
+        "md5": "07ef6eeba20727ce9e042752b9923331",
+        "sha256": "543fa2c09a8b3ea6436fa4efe3182133011a6106464c41b15ee20671b9888c80",
+        "crc16": 38641,
+        "blocks": 1080,
+        "model_string": "T2202",
+        "type_byte": 1,
+        "type_name": "Meter (Dashboard)",
+        "version_string": "00030001",
+        "version_readable": "Build 3.1 (v2.0.3.1)"
+      },
+      {
+        "ts": "2026-03-18T22:52:06.815515",
+        "elapsed_s": 0.1,
+        "event": "scan_start",
+        "timeout": 15.0
+      },
+      {
+        "ts": "2026-03-18T22:52:21.970322",
+        "elapsed_s": 15.25,
+        "event": "scan_found",
+        "name": "NAVEE",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T22:52:21.970549",
+        "elapsed_s": 15.25,
+        "event": "connect_start",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T22:52:24.449158",
+        "elapsed_s": 17.73,
+        "event": "connect_ok",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T22:52:24.508952",
+        "elapsed_s": 17.79,
+        "event": "auth_start",
+        "device_id": "88 00 02 77 53 ED"
+      },
+      {
+        "ts": "2026-03-18T22:52:24.508989",
+        "elapsed_s": 17.79,
+        "event": "ble_write",
+        "data": "55 AA 00 30 09 01 00 88 00 02 77 53 ED 00 7A FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:52:24.569996",
+        "elapsed_s": 17.85,
+        "event": "ble_notify",
+        "cmd": "0x30",
+        "data": "00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:24.570122",
+        "elapsed_s": 17.85,
+        "event": "auth_ok"
+      },
+      {
+        "ts": "2026-03-18T22:52:25.049306",
+        "elapsed_s": 18.33,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:25.560238",
+        "elapsed_s": 18.84,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:25.571652",
+        "elapsed_s": 18.85,
+        "event": "ble_write",
+        "data": "55 AA 00 73 00 72 FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:52:25.649688",
+        "elapsed_s": 18.93,
+        "event": "ble_notify",
+        "cmd": "0x73",
+        "data": "00 32 30 33 31 30 30 31 35 31 30 30 34",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:25.649964",
+        "elapsed_s": 18.93,
+        "event": "firmware_version",
+        "version": "203100151004"
+      },
+      {
+        "ts": "2026-03-18T22:52:25.650019",
+        "elapsed_s": 18.93,
+        "event": "ble_write",
+        "data": "55 AA 00 74 00 73 FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:52:25.709708",
+        "elapsed_s": 18.99,
+        "event": "ble_notify",
+        "cmd": "0x74",
+        "data": "00 54 32 33 34 35 35 34 52 44 45 34 4A 30 30 36 33 38 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:25.709969",
+        "elapsed_s": 18.99,
+        "event": "serial_number",
+        "serial": "T234554RDE4J00638"
+      },
+      {
+        "ts": "2026-03-18T22:52:25.710016",
+        "elapsed_s": 18.99,
+        "event": "ble_write",
+        "data": "55 AA 00 70 00 6F FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:52:25.770996",
+        "elapsed_s": 19.05,
+        "event": "ble_notify",
+        "cmd": "0x70",
+        "data": "00 01 03 00 00 00 1E 00 01 01 00 01 00 00 02 00 01 00 00 00 03 00 00 00 00 00 16 00 00 00 00 00 00 00 00 01 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:25.771298",
+        "elapsed_s": 19.05,
+        "event": "vehicle_settings",
+        "settings": {
+          "drive_mode": "ECO",
+          "lock_status": "UNLOCKED",
+          "cruise_control": false,
+          "tail_light": false,
+          "ers_level": 30,
+          "mileage_unit": "KM",
+          "auto_headlight": true,
+          "tcs": false,
+          "turn_sound": false,
+          "max_speed_kmh": 22
+        }
+      },
+      {
+        "ts": "2026-03-18T22:52:28.041037",
+        "elapsed_s": 21.32,
+        "event": "dfu_enter_start",
+        "mcu_type": 3
+      },
+      {
+        "ts": "2026-03-18T22:52:28.041506",
+        "elapsed_s": 21.32,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 14 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:28.041691",
+        "elapsed_s": 21.32,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:28.041754",
+        "elapsed_s": 21.32,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:28.041809",
+        "elapsed_s": 21.32,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:28.049599",
+        "elapsed_s": 21.33,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:28.342980",
+        "elapsed_s": 21.62,
+        "event": "dfu_enter_sent",
+        "cmd": "down dfu_start 3"
+      },
+      {
+        "ts": "2026-03-18T22:52:28.546826",
+        "elapsed_s": 21.83,
+        "event": "dfu_enter_ok"
+      },
+      {
+        "ts": "2026-03-18T22:52:29.549570",
+        "elapsed_s": 22.83,
+        "event": "dfu_ble_rand_sent"
+      },
+      {
+        "ts": "2026-03-18T22:52:31.552321",
+        "elapsed_s": 24.83,
+        "event": "dfu_cipher_received",
+        "status": "0x00",
+        "length": 16,
+        "hex": "2E 18 BA 3D 8B A8 4B 6D 32 0C 5F 77 AD FC FA 42"
+      },
+      {
+        "ts": "2026-03-18T22:52:31.553970",
+        "elapsed_s": 24.84,
+        "event": "dfu_ble_key_sent",
+        "method": "XOR"
+      },
+      {
+        "ts": "2026-03-18T22:52:33.555574",
+        "elapsed_s": 26.84,
+        "event": "dfu_key_exchange_ok"
+      },
+      {
+        "ts": "2026-03-18T22:52:33.657195",
+        "elapsed_s": 26.94,
+        "event": "xmodem_ready"
+      },
+      {
+        "ts": "2026-03-18T22:52:33.658581",
+        "elapsed_s": 26.94,
+        "event": "flash_start",
+        "blocks": 1080,
+        "size": 138240,
+        "dry_run": false
+      },
+      {
+        "ts": "2026-03-18T22:52:49.930182",
+        "elapsed_s": 43.21,
+        "event": "block_nak",
+        "block": 257,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:52:49.930388",
+        "elapsed_s": 43.21,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:52:50.399925",
+        "elapsed_s": 43.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:50.486674",
+        "elapsed_s": 43.77,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:52:50.911029",
+        "elapsed_s": 44.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:51.044222",
+        "elapsed_s": 44.33,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:52:51.392201",
+        "elapsed_s": 44.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:51.604426",
+        "elapsed_s": 44.89,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:52:51.900666",
+        "elapsed_s": 45.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:52.161574",
+        "elapsed_s": 45.44,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:52:52.409884",
+        "elapsed_s": 45.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:52.716659",
+        "elapsed_s": 46.0,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:52:52.890076",
+        "elapsed_s": 46.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:53.267103",
+        "elapsed_s": 46.55,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:52:53.403836",
+        "elapsed_s": 46.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:53.828049",
+        "elapsed_s": 47.11,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:52:53.911231",
+        "elapsed_s": 47.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:54.386147",
+        "elapsed_s": 47.67,
+        "event": "block_timeout",
+        "block": 257,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:52:54.390411",
+        "elapsed_s": 47.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:54.901921",
+        "elapsed_s": 48.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 28 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:54.945229",
+        "elapsed_s": 48.23,
+        "event": "block_failed",
+        "block": 257
+      },
+      {
+        "ts": "2026-03-18T22:52:55.410256",
+        "elapsed_s": 48.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:55.494148",
+        "elapsed_s": 48.78,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:52:55.891317",
+        "elapsed_s": 49.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:56.062109",
+        "elapsed_s": 49.34,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:52:56.400961",
+        "elapsed_s": 49.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:56.614954",
+        "elapsed_s": 49.9,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:52:56.912161",
+        "elapsed_s": 50.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:57.180515",
+        "elapsed_s": 50.46,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:52:57.391952",
+        "elapsed_s": 50.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:57.738380",
+        "elapsed_s": 51.02,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:52:57.900704",
+        "elapsed_s": 51.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:58.292321",
+        "elapsed_s": 51.57,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:52:58.411710",
+        "elapsed_s": 51.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:58.846170",
+        "elapsed_s": 52.13,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:52:58.890914",
+        "elapsed_s": 52.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:59.397806",
+        "elapsed_s": 52.68,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:52:59.400178",
+        "elapsed_s": 52.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:59.911469",
+        "elapsed_s": 53.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:52:59.956273",
+        "elapsed_s": 53.24,
+        "event": "block_timeout",
+        "block": 258,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:53:00.390223",
+        "elapsed_s": 53.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:00.508537",
+        "elapsed_s": 53.79,
+        "event": "block_failed",
+        "block": 258
+      },
+      {
+        "ts": "2026-03-18T22:53:00.901845",
+        "elapsed_s": 54.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:01.067059",
+        "elapsed_s": 54.35,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:53:01.412044",
+        "elapsed_s": 54.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:01.631085",
+        "elapsed_s": 54.91,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:53:01.891289",
+        "elapsed_s": 55.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:02.201114",
+        "elapsed_s": 55.48,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:53:02.402476",
+        "elapsed_s": 55.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:02.757584",
+        "elapsed_s": 56.04,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:53:02.911143",
+        "elapsed_s": 56.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:03.319826",
+        "elapsed_s": 56.6,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:53:03.391312",
+        "elapsed_s": 56.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:03.875246",
+        "elapsed_s": 57.16,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:53:03.903499",
+        "elapsed_s": 57.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:04.411258",
+        "elapsed_s": 57.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:04.435106",
+        "elapsed_s": 57.72,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:53:04.891255",
+        "elapsed_s": 58.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:04.992364",
+        "elapsed_s": 58.27,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:53:05.400282",
+        "elapsed_s": 58.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:05.555468",
+        "elapsed_s": 58.84,
+        "event": "block_timeout",
+        "block": 259,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:53:05.912141",
+        "elapsed_s": 59.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:06.114835",
+        "elapsed_s": 59.4,
+        "event": "block_failed",
+        "block": 259
+      },
+      {
+        "ts": "2026-03-18T22:53:06.392270",
+        "elapsed_s": 59.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:06.672489",
+        "elapsed_s": 59.95,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:53:06.902174",
+        "elapsed_s": 60.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:07.244963",
+        "elapsed_s": 60.53,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:53:07.411176",
+        "elapsed_s": 60.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:07.793708",
+        "elapsed_s": 61.08,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:53:07.891242",
+        "elapsed_s": 61.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:08.350767",
+        "elapsed_s": 61.63,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:53:08.401016",
+        "elapsed_s": 61.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:08.907502",
+        "elapsed_s": 62.19,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:53:08.911054",
+        "elapsed_s": 62.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:09.391263",
+        "elapsed_s": 62.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:09.469198",
+        "elapsed_s": 62.75,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:53:09.901131",
+        "elapsed_s": 63.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:10.022809",
+        "elapsed_s": 63.3,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:53:10.411409",
+        "elapsed_s": 63.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:10.575229",
+        "elapsed_s": 63.86,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:53:10.892036",
+        "elapsed_s": 64.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 14 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:11.127389",
+        "elapsed_s": 64.41,
+        "event": "block_timeout",
+        "block": 260,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:53:11.400407",
+        "elapsed_s": 64.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:11.697116",
+        "elapsed_s": 64.98,
+        "event": "block_failed",
+        "block": 260
+      },
+      {
+        "ts": "2026-03-18T22:53:11.911564",
+        "elapsed_s": 65.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:12.251279",
+        "elapsed_s": 65.53,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:53:12.391324",
+        "elapsed_s": 65.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:12.805886",
+        "elapsed_s": 66.09,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:53:12.900044",
+        "elapsed_s": 66.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:13.355696",
+        "elapsed_s": 66.64,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:53:13.411164",
+        "elapsed_s": 66.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:13.891387",
+        "elapsed_s": 67.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:13.912485",
+        "elapsed_s": 67.19,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:53:14.401617",
+        "elapsed_s": 67.68,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:14.457510",
+        "elapsed_s": 67.74,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:53:14.911434",
+        "elapsed_s": 68.19,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:15.011872",
+        "elapsed_s": 68.29,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:53:15.392539",
+        "elapsed_s": 68.67,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:15.567515",
+        "elapsed_s": 68.85,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:53:15.902674",
+        "elapsed_s": 69.18,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:16.122647",
+        "elapsed_s": 69.4,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:53:16.411842",
+        "elapsed_s": 69.69,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:16.676230",
+        "elapsed_s": 69.96,
+        "event": "block_timeout",
+        "block": 261,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:53:16.891609",
+        "elapsed_s": 70.17,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:53:17.234181",
+        "elapsed_s": 70.52,
+        "event": "block_failed",
+        "block": 261
+      },
+      {
+        "ts": "2026-03-18T22:53:17.234321",
+        "elapsed_s": 70.52,
+        "event": "transfer_aborted",
+        "reason": "too_many_failures",
+        "failed": 5,
+        "successful": 256
+      },
+      {
+        "ts": "2026-03-18T22:53:17.234581",
+        "elapsed_s": 70.52,
+        "event": "flash_failed"
+      }
+    ]
+  },
+  {
+    "session_start": "2026-03-18T22:55:18.759626",
+    "session_end": "2026-03-18T22:57:24.574971",
+    "total_events": 140,
+    "events": [
+      {
+        "ts": "2026-03-18T22:55:18.759646",
+        "elapsed_s": 0.0,
+        "event": "session_start",
+        "mode": "flash",
+        "dry_run": false,
+        "firmware": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin"
+      },
+      {
+        "ts": "2026-03-18T22:55:18.856601",
+        "elapsed_s": 0.1,
+        "event": "firmware_analyzed",
+        "path": "firmware/navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "filename": "navee_meter_v2.0.3.1_ORIGINAL.bin",
+        "size": 138240,
+        "size_kb": 135.0,
+        "md5": "07ef6eeba20727ce9e042752b9923331",
+        "sha256": "543fa2c09a8b3ea6436fa4efe3182133011a6106464c41b15ee20671b9888c80",
+        "crc16": 38641,
+        "blocks": 1080,
+        "model_string": "T2202",
+        "type_byte": 1,
+        "type_name": "Meter (Dashboard)",
+        "version_string": "00030001",
+        "version_readable": "Build 3.1 (v2.0.3.1)"
+      },
+      {
+        "ts": "2026-03-18T22:55:18.856627",
+        "elapsed_s": 0.1,
+        "event": "scan_start",
+        "timeout": 15.0
+      },
+      {
+        "ts": "2026-03-18T22:55:33.998829",
+        "elapsed_s": 15.24,
+        "event": "scan_found",
+        "name": "NAVEE",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T22:55:33.999036",
+        "elapsed_s": 15.24,
+        "event": "connect_start",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T22:55:47.455455",
+        "elapsed_s": 28.7,
+        "event": "connect_ok",
+        "address": "7B25177C-2D70-1F95-68E2-056E946F9418"
+      },
+      {
+        "ts": "2026-03-18T22:55:47.513446",
+        "elapsed_s": 28.75,
+        "event": "auth_start",
+        "device_id": "88 00 02 77 53 ED"
+      },
+      {
+        "ts": "2026-03-18T22:55:47.513488",
+        "elapsed_s": 28.75,
+        "event": "ble_write",
+        "data": "55 AA 00 30 09 01 00 88 00 02 77 53 ED 00 7A FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:55:47.573008",
+        "elapsed_s": 28.81,
+        "event": "ble_notify",
+        "cmd": "0x30",
+        "data": "00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:47.573116",
+        "elapsed_s": 28.81,
+        "event": "auth_ok"
+      },
+      {
+        "ts": "2026-03-18T22:55:48.084184",
+        "elapsed_s": 29.32,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:48.563641",
+        "elapsed_s": 29.8,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:48.574795",
+        "elapsed_s": 29.82,
+        "event": "ble_write",
+        "data": "55 AA 00 73 00 72 FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:55:48.684599",
+        "elapsed_s": 29.92,
+        "event": "ble_notify",
+        "cmd": "0x73",
+        "data": "00 32 30 33 31 30 30 31 35 31 30 30 34",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:48.684959",
+        "elapsed_s": 29.93,
+        "event": "firmware_version",
+        "version": "203100151004"
+      },
+      {
+        "ts": "2026-03-18T22:55:48.685051",
+        "elapsed_s": 29.93,
+        "event": "ble_write",
+        "data": "55 AA 00 74 00 73 FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:55:48.804733",
+        "elapsed_s": 30.05,
+        "event": "ble_notify",
+        "cmd": "0x74",
+        "data": "00 54 32 33 34 35 35 34 52 44 45 34 4A 30 30 36 33 38 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:48.805049",
+        "elapsed_s": 30.05,
+        "event": "serial_number",
+        "serial": "T234554RDE4J00638"
+      },
+      {
+        "ts": "2026-03-18T22:55:48.805759",
+        "elapsed_s": 30.05,
+        "event": "ble_write",
+        "data": "55 AA 00 70 00 6F FE FD"
+      },
+      {
+        "ts": "2026-03-18T22:55:48.925270",
+        "elapsed_s": 30.17,
+        "event": "ble_notify",
+        "cmd": "0x70",
+        "data": "00 01 03 00 00 00 1E 00 01 01 00 01 00 00 02 00 01 00 00 00 03 00 00 00 00 00 16 00 00 00 00 00 00 00 00 01 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:48.925688",
+        "elapsed_s": 30.17,
+        "event": "vehicle_settings",
+        "settings": {
+          "drive_mode": "ECO",
+          "lock_status": "UNLOCKED",
+          "cruise_control": false,
+          "tail_light": false,
+          "ers_level": 30,
+          "mileage_unit": "KM",
+          "auto_headlight": true,
+          "tcs": false,
+          "turn_sound": false,
+          "max_speed_kmh": 22
+        }
+      },
+      {
+        "ts": "2026-03-18T22:55:56.796531",
+        "elapsed_s": 38.04,
+        "event": "dfu_enter_start",
+        "mcu_type": 3
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799557",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 14 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799724",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799757",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799789",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799808",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799828",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799883",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799900",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799916",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799932",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.799947",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.800015",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.800041",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.800061",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.800078",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 28 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:56.800096",
+        "elapsed_s": 38.04,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:57.085890",
+        "elapsed_s": 38.33,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 A0 CB 00 00 28 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:55:57.109750",
+        "elapsed_s": 38.35,
+        "event": "dfu_enter_sent",
+        "cmd": "down dfu_start 3"
+      },
+      {
+        "ts": "2026-03-18T22:55:57.311937",
+        "elapsed_s": 38.55,
+        "event": "dfu_enter_ok"
+      },
+      {
+        "ts": "2026-03-18T22:55:58.313061",
+        "elapsed_s": 39.55,
+        "event": "dfu_ble_rand_sent"
+      },
+      {
+        "ts": "2026-03-18T22:56:00.316444",
+        "elapsed_s": 41.56,
+        "event": "dfu_cipher_received",
+        "status": "0x00",
+        "length": 16,
+        "hex": "18 23 D1 7E 84 1A C8 19 50 B3 2D 27 09 A8 EA 31"
+      },
+      {
+        "ts": "2026-03-18T22:56:00.317435",
+        "elapsed_s": 41.56,
+        "event": "dfu_ble_key_sent",
+        "method": "XOR"
+      },
+      {
+        "ts": "2026-03-18T22:56:02.319304",
+        "elapsed_s": 43.56,
+        "event": "dfu_key_exchange_ok"
+      },
+      {
+        "ts": "2026-03-18T22:56:02.522509",
+        "elapsed_s": 43.76,
+        "event": "xmodem_ready"
+      },
+      {
+        "ts": "2026-03-18T22:56:02.523889",
+        "elapsed_s": 43.76,
+        "event": "flash_start",
+        "blocks": 1080,
+        "size": 138240,
+        "dry_run": false
+      },
+      {
+        "ts": "2026-03-18T22:57:03.405336",
+        "elapsed_s": 104.65,
+        "event": "block_timeout",
+        "block": 568,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:57:03.448985",
+        "elapsed_s": 104.69,
+        "event": "block_nak",
+        "block": 569,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:57:03.449036",
+        "elapsed_s": 104.69,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:57:03.926727",
+        "elapsed_s": 105.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:04.012531",
+        "elapsed_s": 105.25,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:57:04.573692",
+        "elapsed_s": 105.81,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:57:04.825924",
+        "elapsed_s": 106.07,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 14 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:04.915768",
+        "elapsed_s": 106.16,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:05.144921",
+        "elapsed_s": 106.39,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:57:05.425229",
+        "elapsed_s": 106.67,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 28 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:05.706193",
+        "elapsed_s": 106.95,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:57:06.270704",
+        "elapsed_s": 107.51,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:57:06.298545",
+        "elapsed_s": 107.54,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:06.416661",
+        "elapsed_s": 107.66,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:06.826801",
+        "elapsed_s": 108.07,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:57:06.925396",
+        "elapsed_s": 108.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:07.400583",
+        "elapsed_s": 108.64,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:57:07.766232",
+        "elapsed_s": 109.01,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:07.914043",
+        "elapsed_s": 109.15,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:07.958694",
+        "elapsed_s": 109.2,
+        "event": "block_timeout",
+        "block": 569,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:57:08.425317",
+        "elapsed_s": 109.67,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:08.512389",
+        "elapsed_s": 109.75,
+        "event": "block_failed",
+        "block": 569
+      },
+      {
+        "ts": "2026-03-18T22:57:09.077781",
+        "elapsed_s": 110.32,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:57:09.239345",
+        "elapsed_s": 110.48,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:09.414470",
+        "elapsed_s": 110.65,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 28 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:09.654782",
+        "elapsed_s": 110.9,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:57:09.926981",
+        "elapsed_s": 111.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:10.221629",
+        "elapsed_s": 111.46,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:57:10.705511",
+        "elapsed_s": 111.95,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:10.785420",
+        "elapsed_s": 112.03,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:57:10.915644",
+        "elapsed_s": 112.16,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:11.356542",
+        "elapsed_s": 112.6,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:57:11.424377",
+        "elapsed_s": 112.66,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:11.970320",
+        "elapsed_s": 113.21,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:57:12.116261",
+        "elapsed_s": 113.36,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:12.414116",
+        "elapsed_s": 113.65,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:12.530384",
+        "elapsed_s": 113.77,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:57:12.925773",
+        "elapsed_s": 114.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:13.096538",
+        "elapsed_s": 114.34,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:57:13.585694",
+        "elapsed_s": 114.83,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:13.653731",
+        "elapsed_s": 114.89,
+        "event": "block_timeout",
+        "block": 570,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:57:13.917160",
+        "elapsed_s": 115.16,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:14.229768",
+        "elapsed_s": 115.47,
+        "event": "block_failed",
+        "block": 570
+      },
+      {
+        "ts": "2026-03-18T22:57:14.426188",
+        "elapsed_s": 115.67,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:14.789711",
+        "elapsed_s": 116.03,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:57:15.086448",
+        "elapsed_s": 116.33,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:15.366377",
+        "elapsed_s": 116.61,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:57:15.414008",
+        "elapsed_s": 116.65,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:15.925731",
+        "elapsed_s": 117.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:15.936703",
+        "elapsed_s": 117.18,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:57:16.513165",
+        "elapsed_s": 117.75,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:57:16.586557",
+        "elapsed_s": 117.83,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:16.916403",
+        "elapsed_s": 118.16,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:17.088175",
+        "elapsed_s": 118.33,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:57:17.425070",
+        "elapsed_s": 118.67,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:17.659982",
+        "elapsed_s": 118.9,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:57:18.054918",
+        "elapsed_s": 119.3,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:18.225354",
+        "elapsed_s": 119.47,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 6
+      },
+      {
+        "ts": "2026-03-18T22:57:18.415818",
+        "elapsed_s": 119.66,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:18.790447",
+        "elapsed_s": 120.03,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 7
+      },
+      {
+        "ts": "2026-03-18T22:57:18.926182",
+        "elapsed_s": 120.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:19.362903",
+        "elapsed_s": 120.6,
+        "event": "block_timeout",
+        "block": 571,
+        "attempt": 8
+      },
+      {
+        "ts": "2026-03-18T22:57:19.615583",
+        "elapsed_s": 120.86,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:19.915517",
+        "elapsed_s": 121.16,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:19.929478",
+        "elapsed_s": 121.17,
+        "event": "block_failed",
+        "block": 571
+      },
+      {
+        "ts": "2026-03-18T22:57:20.424465",
+        "elapsed_s": 121.66,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:20.491441",
+        "elapsed_s": 121.73,
+        "event": "block_timeout",
+        "block": 572,
+        "attempt": 0
+      },
+      {
+        "ts": "2026-03-18T22:57:21.061673",
+        "elapsed_s": 122.3,
+        "event": "block_timeout",
+        "block": 572,
+        "attempt": 1
+      },
+      {
+        "ts": "2026-03-18T22:57:21.206165",
+        "elapsed_s": 122.45,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:21.415180",
+        "elapsed_s": 122.66,
+        "event": "ble_notify",
+        "cmd": "0x90",
+        "data": "00 00 03 55 00 00 00 40 01 70 CB 00 00 1E 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:21.630502",
+        "elapsed_s": 122.87,
+        "event": "block_timeout",
+        "block": 572,
+        "attempt": 2
+      },
+      {
+        "ts": "2026-03-18T22:57:21.925780",
+        "elapsed_s": 123.17,
+        "event": "ble_notify",
+        "cmd": "0x92",
+        "data": "00 55 00 00 00 40 00 00 00 00 00 00 00 00 00 6E 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "valid": true
+      },
+      {
+        "ts": "2026-03-18T22:57:22.189174",
+        "elapsed_s": 123.43,
+        "event": "block_timeout",
+        "block": 572,
+        "attempt": 3
+      },
+      {
+        "ts": "2026-03-18T22:57:22.771689",
+        "elapsed_s": 124.01,
+        "event": "block_timeout",
+        "block": 572,
+        "attempt": 4
+      },
+      {
+        "ts": "2026-03-18T22:57:23.352148",
+        "elapsed_s": 124.59,
+        "event": "block_timeout",
+        "block": 572,
+        "attempt": 5
+      },
+      {
+        "ts": "2026-03-18T22:57:23.352266",
+        "elapsed_s": 124.59,
+        "event": "block_error",
+        "block": 572,
+        "attempt": 6,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.453532",
+        "elapsed_s": 124.69,
+        "event": "block_error",
+        "block": 572,
+        "attempt": 7,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.554937",
+        "elapsed_s": 124.8,
+        "event": "block_error",
+        "block": 572,
+        "attempt": 8,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.656181",
+        "elapsed_s": 124.9,
+        "event": "block_error",
+        "block": 572,
+        "attempt": 9,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.656396",
+        "elapsed_s": 124.9,
+        "event": "block_failed",
+        "block": 572
+      },
+      {
+        "ts": "2026-03-18T22:57:23.657272",
+        "elapsed_s": 124.9,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 0,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.757641",
+        "elapsed_s": 125.0,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 1,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.858766",
+        "elapsed_s": 125.1,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 2,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:23.959129",
+        "elapsed_s": 125.2,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 3,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.060412",
+        "elapsed_s": 125.3,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 4,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.163110",
+        "elapsed_s": 125.4,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 5,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.268712",
+        "elapsed_s": 125.51,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 6,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.370876",
+        "elapsed_s": 125.61,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 7,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.472591",
+        "elapsed_s": 125.71,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 8,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.574155",
+        "elapsed_s": 125.81,
+        "event": "block_error",
+        "block": 573,
+        "attempt": 9,
+        "error": "Service Discovery has not been performed yet"
+      },
+      {
+        "ts": "2026-03-18T22:57:24.574403",
+        "elapsed_s": 125.81,
+        "event": "block_failed",
+        "block": 573
+      },
+      {
+        "ts": "2026-03-18T22:57:24.574432",
+        "elapsed_s": 125.81,
+        "event": "transfer_aborted",
+        "reason": "too_many_failures",
+        "failed": 5,
+        "successful": 568
+      },
+      {
+        "ts": "2026-03-18T22:57:24.574711",
+        "elapsed_s": 125.82,
+        "event": "flash_failed"
+      }
+    ]
   }
 ]

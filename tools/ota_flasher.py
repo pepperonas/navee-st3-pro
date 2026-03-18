@@ -74,14 +74,26 @@ XMODEM_NAK = 0x15   # Negative Acknowledge
 XMODEM_CAN = 0x18   # Cancel
 XMODEM_C = 0x43     # 'C' for CRC mode
 
-# TODO: These OTA command bytes need to be confirmed through testing.
-# They are approximate values based on APK analysis of f2/a.java.
-# Candidates found in APK: 0x40-0x4F range, 0xF0-0xFF range.
-CMD_OTA_START = 0x40       # TODO: Confirm - Enter OTA/DFU mode
-CMD_OTA_HEADER = 0x41      # TODO: Confirm - Send firmware header info
-CMD_OTA_DATA = 0x42        # TODO: Confirm - Send firmware data block
-CMD_OTA_VERIFY = 0x43      # TODO: Confirm - Verify firmware integrity
-CMD_OTA_REBOOT = 0x44      # TODO: Confirm - Reboot into new firmware
+# DFU nutzt Text-Commands, keine CMD-Bytes (verifiziert via --test-dfu-entry)
+# "down dfu_start 3\r" → "ok\r"
+# "down ble_rand\r" → "ok <cipher>\r"
+# "down ble_key <key>\r" → "ok\r"
+# Danach XMODEM mit raw 0x43 ('C') Ready Signal
+CMD_OTA_START = 0x40  # Legacy — nicht mehr verwendet, nur für Kompatibilität
+
+# AES-128-ECB Keys (aus APK b4/a.java, 5 Stück)
+AES_KEYS = [
+    bytes([0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
+           0xA8, 0xA9, 0xAA, 0xAB, 0xAC, 0xAD, 0xAE, 0xAF]),
+    bytes([0x44, 0x6D, 0x10, 0x72, 0x6D, 0xBE, 0x05, 0xF6,
+           0x62, 0xDF, 0xAA, 0xF0, 0x13, 0x27, 0x30, 0x3F]),
+    bytes([0xA2, 0x85, 0xCC, 0xEC, 0x81, 0x4F, 0xE9, 0x61,
+           0x74, 0x29, 0x95, 0xE8, 0xEB, 0xA9, 0x22, 0x47]),
+    bytes([0x3F, 0xEE, 0x80, 0xFF, 0x9A, 0xDF, 0x5C, 0xF5,
+           0x42, 0xEA, 0xAC, 0x93, 0x28, 0x1F, 0xE5, 0x29]),
+    bytes([0x4E, 0xB4, 0xD4, 0x64, 0xD6, 0xEF, 0x53, 0xED,
+           0x6C, 0xE9, 0x45, 0x58, 0xDE, 0x9A, 0x5E, 0xE3]),
+]
 CMD_OTA_STATUS = 0x45      # TODO: Confirm - Query OTA status
 
 # AES keys (from APK — all 5 work, index is arbitrary)
@@ -707,13 +719,15 @@ class NaveeOTAFlasher:
             offset = (block_num - 1) * XMODEM_BLOCK_SIZE
             block_data = fw_data[offset:offset + XMODEM_BLOCK_SIZE]
 
-            # Pad last block with 0xFF
+            # Pad last block with 0x1A (SUB) — XMODEM standard, confirmed in APK
             if len(block_data) < XMODEM_BLOCK_SIZE:
-                block_data += bytes([0xFF] * (XMODEM_BLOCK_SIZE - len(block_data)))
+                block_data += bytes([0x1A] * (XMODEM_BLOCK_SIZE - len(block_data)))
 
-            # Build XMODEM block
-            seq = block_num & 0xFF  # Wraps at 255
-            seq_comp = 0xFF - seq
+            # Build XMODEM block — APK: seq wraps 255→1, never 0
+            seq = block_num % 256
+            if seq == 0:
+                seq = 1
+            seq_comp = (~seq) & 0xFF
             crc = crc16_xmodem(block_data)
 
             xmodem_block = bytearray()
@@ -746,68 +760,50 @@ class NaveeOTAFlasher:
                 await asyncio.sleep(0.01)
                 continue
 
-            # TODO: Determine the correct sending method:
-            #
-            # Method A: Raw XMODEM over BLE characteristic
-            #   - Split xmodem_block into BLE_MTU-sized chunks
-            #   - Write each chunk sequentially
-            #   - Wait for ACK after the full block
-            #
-            # Method B: Wrapped in Navee frame
-            #   - Use CMD_OTA_DATA with xmodem_block as data
-            #   - Navee framing adds header/footer/checksum
-            #
-            # Method C: Just the data, no XMODEM framing
-            #   - Send 128-byte blocks wrapped in Navee CMD frames
-            #   - CRC sent separately or as part of data field
-            #
-            # Starting with Method A (raw XMODEM):
-
-            # Split into BLE-MTU-sized chunks and write
-            retries = 3
+            # Raw XMODEM über BLE — Block als Ganzes senden
+            # APK: b4.a.c0(device, byteArray) — schreibt direkt auf Write-Characteristic
+            retries = 10  # APK nutzt 10 Retries
             block_ok = False
             for attempt in range(retries):
                 try:
-                    # Send XMODEM block in chunks
-                    chunk_size = BLE_MTU
-                    for i in range(0, len(xmodem_block), chunk_size):
-                        chunk = bytes(xmodem_block[i:i + chunk_size])
-                        await self.client.write_gatt_char(WRITE_UUID, chunk, response=False)
-                        await asyncio.sleep(0.005)  # Small inter-chunk delay
+                    # Gesamten XMODEM-Block senden (133 Bytes)
+                    # BLE MTU ist 247 — passt in einen Write
+                    self.last_responses.clear()
+                    await self.client.write_gatt_char(
+                        WRITE_UUID, bytes(xmodem_block), response=False)
 
-                    # Wait for ACK/NAK
-                    try:
-                        resp = await asyncio.wait_for(
-                            self.response_queue.get(), timeout=OTA_BLOCK_TIMEOUT
-                        )
-                        # Check for XMODEM ACK
-                        if resp.get("cmd") == CMD_OTA_DATA:
-                            resp_data = resp.get("data", b"")
-                            if resp_data and resp_data[0] == XMODEM_ACK:
-                                block_ok = True
+                    # Warte auf ACK (0x06) oder NAK (0x15)
+                    ack_received = False
+                    for _ in range(50):  # Max 500ms warten
+                        await asyncio.sleep(0.01)
+                        for resp in self.last_responses:
+                            if XMODEM_ACK in resp:
+                                ack_received = True
                                 break
-                            elif resp_data and resp_data[0] == XMODEM_NAK:
+                            if XMODEM_NAK in resp:
                                 self.log.log("block_nak", block=block_num, attempt=attempt)
-                                continue
-                            elif resp_data and resp_data[0] == XMODEM_CAN:
-                                print(f"\n\n  ABORT: Scooter cancelled transfer at block {block_num}!")
+                                break
+                            if XMODEM_CAN in resp:
+                                print(f"\n\n  ABORT: Scooter hat Transfer abgebrochen bei Block {block_num}!")
                                 self.log.log("transfer_cancelled", block=block_num)
                                 return False
-                        # Also check for raw ACK byte in notification
-                        # TODO: The ACK might come as a single raw byte, not a Navee frame
-                        block_ok = True  # Assume OK if we got any response
+                        if ack_received:
+                            break
+                        if any(XMODEM_NAK in r for r in self.last_responses):
+                            break
+
+                    if ack_received:
+                        block_ok = True
                         break
-                    except asyncio.TimeoutError:
-                        self.log.log("block_timeout", block=block_num, attempt=attempt)
-                        # Some implementations don't ACK every block
-                        # TODO: Determine if ACK is expected per-block or per-batch
-                        block_ok = True  # Optimistic: continue if no NAK
-                        break
+                    else:
+                        # Kein ACK nach 500ms — Retry
+                        if attempt < retries - 1:
+                            self.log.log("block_timeout", block=block_num, attempt=attempt)
 
                 except Exception as e:
                     self.log.log("block_error", block=block_num, attempt=attempt, error=str(e))
                     if attempt < retries - 1:
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(0.1)
 
             if block_ok:
                 successful_blocks += 1
@@ -838,12 +834,35 @@ class NaveeOTAFlasher:
                      elapsed_s=round(elapsed, 1), rate_bps=round(rate, 0))
 
         if not self.dry_run:
-            # Send EOT
-            print("  Sending EOT (End of Transmission)...")
-            # TODO: EOT might be raw byte or wrapped in Navee frame
-            eot_frame = build_frame(CMD_OTA_DATA, bytes([XMODEM_EOT]))
-            await self._write(eot_frame)
-            await asyncio.sleep(1.0)
+            # Send EOT (raw byte, nicht als Navee-Frame)
+            print("  Sending EOT (0x04)...")
+            for eot_attempt in range(5):
+                await self.client.write_gatt_char(
+                    WRITE_UUID, bytes([XMODEM_EOT]), response=False)
+                self.log.log("eot_sent", attempt=eot_attempt)
+                await asyncio.sleep(0.5)
+
+                # Prüfe auf ACK oder "rsq dfu_ok\r"
+                for resp in self.last_responses:
+                    if XMODEM_ACK in resp or b"dfu_ok" in resp:
+                        print(f"  EOT bestätigt!")
+                        break
+                else:
+                    continue
+                break
+
+            # Warte auf "rsq dfu_ok\r" oder "rsq dfu_error\r"
+            print("  Warte auf DFU-Ergebnis...")
+            await asyncio.sleep(3.0)
+            for resp in self.last_responses:
+                text = resp.decode('ascii', errors='replace')
+                if "dfu_ok" in text:
+                    print("  >>> DFU OK! Firmware erfolgreich geflasht! <<<")
+                    self.log.log("dfu_complete_ok")
+                elif "dfu_error" in text:
+                    print("  >>> DFU ERROR! Firmware-Flash fehlgeschlagen! <<<")
+                    self.log.log("dfu_complete_error")
+                    return False
 
         return failed_blocks == 0
 
@@ -1034,44 +1053,106 @@ class NaveeOTAFlasher:
                 print("  Abbruch — Scooter ist unverändert.")
                 return False
 
-            # Nach DFU-Entry: Scooter trennt BLE und startet DFU-Bootloader
-            # Wir müssen neu verbinden
-            print("\n  Scooter wechselt in DFU-Modus...")
-            print("  Warte auf Reconnect (10s)...")
-            await asyncio.sleep(3.0)
+            # --- Step 6: Key Exchange (ble_rand + ble_key) ---
+            print("\n[Step 6] Key Exchange...")
+            if self.dry_run:
+                print("  [DRY RUN] Would send ble_rand + ble_key")
+            else:
+                # Schritt 6a: Random anfordern
+                self.last_responses.clear()
+                print("  TX: 'down ble_rand'")
+                await self.client.write_gatt_char(
+                    WRITE_UUID, b"down ble_rand\r", response=False)
+                self.log.log("dfu_ble_rand_sent")
 
-            # Reconnect
-            if not self.client.is_connected:
-                print("  BLE getrennt (erwartet). Reconnecting...")
-                try:
-                    await self.connect(self.device_address)
-                    print("  Reconnect OK!")
-                except Exception as e:
-                    print(f"  Reconnect fehlgeschlagen: {e}")
-                    print("  Der Scooter ist vermutlich noch im DFU-Modus.")
-                    print("  Scooter aus/ein und nochmal versuchen.")
-                    return False
+                await asyncio.sleep(2.0)
 
-            # --- Step 6: Send firmware header ---
-            print("\n[Step 6] Sending firmware header...")
-            header_ok = await self.send_firmware_header(fw_info)
-            if not header_ok and not self.dry_run:
-                print("  WARNING: Firmware header may not have been accepted.")
-                resp = input("  Continue anyway? (y/N): ").strip().lower()
-                if resp != "y":
-                    print("  Aborted.")
-                    return False
+                # Prüfe Response
+                rand_response = None
+                for resp in self.last_responses:
+                    text = resp.decode('ascii', errors='replace')
+                    if "ok" in text.lower():
+                        rand_response = resp
+                        print(f"  RX: {text.strip()!r}")
+                        break
 
-            # --- Step 7: Flash firmware ---
-            print("\n[Step 7] Flashing firmware...")
+                if rand_response and len(rand_response) > 4:
+                    # Response: "ok <ciphertext>\r" — extrahiere ciphertext
+                    text = rand_response.decode('ascii', errors='replace').strip()
+                    parts = text.split(" ", 1)
+                    if len(parts) > 1:
+                        cipher_hex = parts[1].strip()
+                        print(f"  Cipher: {cipher_hex[:40]}...")
+
+                        # Schritt 6b: Verschlüsselten Key senden
+                        # Für den Moment: Key-Index 1 verwenden
+                        key = AES_KEYS[1]
+                        try:
+                            from Crypto.Cipher import AES as PyCryptoAES
+                            cipher = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB)
+                            # Entschlüssle den Random und sende ihn zurück
+                            encrypted = bytes.fromhex(cipher_hex)
+                            decrypted = cipher.decrypt(encrypted[:16])
+                            re_encrypted = cipher.encrypt(decrypted)
+                            key_cmd = f"down ble_key {re_encrypted.hex()}\r".encode('ascii')
+                        except ImportError:
+                            # Ohne pycryptodome: Sende den raw cipher zurück
+                            key_cmd = f"down ble_key {cipher_hex}\r".encode('ascii')
+
+                        self.last_responses.clear()
+                        print(f"  TX: 'down ble_key ...'")
+                        await self.client.write_gatt_char(
+                            WRITE_UUID, key_cmd, response=False)
+                        self.log.log("dfu_ble_key_sent")
+                        await asyncio.sleep(2.0)
+
+                        for resp in self.last_responses:
+                            text = resp.decode('ascii', errors='replace')
+                            if "ok" in text.lower():
+                                print(f"  Key Exchange OK!")
+                                self.log.log("dfu_key_exchange_ok")
+                                break
+                    else:
+                        print("  ble_rand Response ohne Cipher — überspringe Key Exchange")
+                elif rand_response:
+                    print(f"  ble_rand Response: {rand_response!r}")
+                    print("  Kein Cipher — Key Exchange möglicherweise nicht erforderlich")
+                else:
+                    print("  Keine Response auf ble_rand — überspringe Key Exchange")
+                    self.log.log("dfu_ble_rand_no_response")
+
+            # --- Step 7: Warte auf XMODEM Ready Signal (0x43 = 'C') ---
+            print("\n[Step 7] Warte auf XMODEM Ready Signal...")
+            if self.dry_run:
+                print("  [DRY RUN] Would wait for 0x43 ('C')")
+            else:
+                self.last_responses.clear()
+                xmodem_ready = False
+                for i in range(100):  # Max 10 Sekunden warten
+                    await asyncio.sleep(0.1)
+                    for resp in self.last_responses:
+                        if 0x43 in resp or b"C" in resp:
+                            print("  XMODEM Ready Signal empfangen! (0x43 = 'C')")
+                            xmodem_ready = True
+                            break
+                    if xmodem_ready:
+                        break
+
+                if not xmodem_ready:
+                    print("  Kein XMODEM Ready Signal nach 10s.")
+                    print("  Versuche trotzdem mit dem Transfer...")
+                    self.log.log("xmodem_no_ready_signal")
+
+            # --- Step 8: XMODEM Firmware Transfer ---
+            print("\n[Step 8] Flashing firmware...")
             flash_ok = await self.flash_firmware(firmware_path, fw_info)
             if not flash_ok:
                 print("\n  FLASH FAILED!")
                 self.log.log("flash_failed")
                 return False
 
-            # --- Step 8: Verify ---
-            print("\n[Step 8] Verifying...")
+            # --- Step 9: Verify ---
+            print("\n[Step 9] Verifying...")
             expected_ver = fw_info.get("version_readable", "")
             verify_ok = await self.verify_firmware(expected_ver)
 

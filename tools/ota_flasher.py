@@ -763,54 +763,31 @@ class NaveeOTAFlasher:
                 await asyncio.sleep(0.01)
                 continue
 
-            # Raw XMODEM über BLE — Block senden und kurz auf ACK warten
-            # APK sendet Blöcke schnell hintereinander mit minimalem ACK-Wait
-            retries = 3
+            # Fire-and-Forget: Block senden, minimale Pause, weitermachen
+            # Nur bei NAK/CAN stoppen. ACK wird nicht explizit geprüft.
+            # APK sendet auch schnell hintereinander.
             block_ok = False
-            for attempt in range(retries):
-                try:
-                    self.last_responses.clear()
-                    await self.client.write_gatt_char(
-                        WRITE_UUID, bytes(xmodem_block), response=False)
+            try:
+                await self.client.write_gatt_char(
+                    WRITE_UUID, bytes(xmodem_block), response=False)
+                block_ok = True
 
-                    # Kurzes ACK-Wait — nicht blockierend, max 100ms
-                    await asyncio.sleep(0.05)
+                # Minimale Pause für BLE-Stack (5ms)
+                await asyncio.sleep(0.005)
 
-                    # Prüfe ob ACK da ist
-                    ack_received = False
-                    for resp in self.last_responses:
-                        if XMODEM_ACK in resp:
-                            ack_received = True
-                            break
-                        if XMODEM_CAN in resp:
-                            print(f"\n\n  ABORT: Scooter hat Transfer abgebrochen!")
-                            return False
-
-                    if ack_received:
-                        block_ok = True
-                        break
-
-                    # Kein ACK nach 50ms — nochmal kurz warten
-                    await asyncio.sleep(0.05)
-                    for resp in self.last_responses:
-                        if XMODEM_ACK in resp:
-                            block_ok = True
-                            break
-                    if block_ok:
-                        break
-
-                    # Immer noch kein ACK — bei Retry nochmal senden
-                    if attempt < retries - 1:
-                        await asyncio.sleep(0.02)
-
-                except Exception as e:
-                    self.log.log("block_error", block=block_num, attempt=attempt, error=str(e))
-                    # Bei BLE-Disconnect sofort abbrechen
-                    if "Service Discovery" in str(e) or "not connected" in str(e).lower():
-                        print(f"\n\n  BLE-Verbindung verloren bei Block {block_num}!")
+                # Prüfe nur auf NAK/CAN (Fehler), nicht auf ACK
+                for resp in self.last_responses:
+                    if XMODEM_CAN in resp:
+                        print(f"\n\n  ABORT: Scooter hat Transfer abgebrochen!")
                         return False
-                    if attempt < retries - 1:
-                        await asyncio.sleep(0.05)
+                self.last_responses.clear()
+
+            except Exception as e:
+                err = str(e)
+                if "Service Discovery" in err or "not connected" in err.lower():
+                    print(f"\n\n  BLE-Verbindung verloren bei Block {block_num}!")
+                    return False
+                block_ok = False
 
             if block_ok:
                 successful_blocks += 1

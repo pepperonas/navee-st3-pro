@@ -828,59 +828,48 @@ class NaveeOTAFlasher:
                      elapsed_s=round(elapsed, 1), rate_bps=round(rate, 0))
 
         if not self.dry_run:
-            # EOT senden — APK: 5× mit 3000ms Intervall (DFUProcessor.java Zeile 291-312)
-            print("  Sending EOT (0x04) — 5× mit 3s Intervall...")
-            self.last_responses.clear()
-            eot_acked = False
-            for eot_attempt in range(5):
-                print(f"    EOT #{eot_attempt + 1}/5...")
-                await self.client.write_gatt_char(
-                    WRITE_UUID, bytes([XMODEM_EOT]), response=False)
-                self.log.log("eot_sent", attempt=eot_attempt)
-
-                # Warte 3s und prüfe auf ACK
-                for _ in range(30):
-                    await asyncio.sleep(0.1)
-                    for resp in self.last_responses:
-                        if XMODEM_ACK in resp:
-                            print(f"    ACK empfangen!")
-                            eot_acked = True
-                            break
-                    if eot_acked:
-                        break
-                if eot_acked:
-                    break
-
-            if eot_acked:
-                print("  EOT bestätigt — warte auf DFU-Ergebnis (10s)...")
-            else:
-                print("  Kein ACK auf EOT — warte trotzdem auf DFU-Ergebnis (10s)...")
-
-            # Warte auf "rsq dfu_ok\r" oder "rsq dfu_error\r" (APK: 3s Timeout)
+            # EOT senden — test_eot.py zeigte: rsq dfu_ok kommt nach ~1.5s
+            # OHNE vorheriges ACK! Scooter rebootet danach sofort.
+            print("  Sending EOT (0x04)...")
             self.last_responses.clear()
             dfu_result = None
-            for _ in range(100):  # Max 10s
-                await asyncio.sleep(0.1)
-                for resp in self.last_responses:
-                    if b"dfu_ok" in resp:
-                        dfu_result = "OK"
-                        break
-                    if b"dfu_error" in resp:
-                        dfu_result = "ERROR"
+
+            for eot_attempt in range(5):
+                print(f"    EOT #{eot_attempt + 1}/5...")
+                try:
+                    await self.client.write_gatt_char(
+                        WRITE_UUID, bytes([XMODEM_EOT]), response=False)
+                except Exception:
+                    break  # BLE disconnected — Scooter hat rebootet
+                self.log.log("eot_sent", attempt=eot_attempt)
+
+                # 3s warten, dabei auf ACK UND dfu_ok prüfen
+                for _ in range(30):
+                    await asyncio.sleep(0.1)
+                    for resp in list(self.last_responses):
+                        if b"dfu_ok" in resp:
+                            dfu_result = "OK"
+                            print(f"    >>> rsq dfu_ok empfangen! <<<")
+                            break
+                        if b"dfu_error" in resp:
+                            dfu_result = "ERROR"
+                            print(f"    >>> rsq dfu_error! <<<")
+                            break
+                    if dfu_result:
                         break
                 if dfu_result:
                     break
 
             if dfu_result == "OK":
-                print("  >>> DFU OK! Firmware erfolgreich installiert! <<<")
+                print("\n  FIRMWARE ERFOLGREICH INSTALLIERT!")
                 self.log.log("dfu_complete_ok")
             elif dfu_result == "ERROR":
-                print("  >>> DFU ERROR! Firmware abgelehnt! <<<")
+                print("\n  FIRMWARE ABGELEHNT!")
                 self.log.log("dfu_complete_error")
                 return False
             else:
-                print("  Kein DFU-Ergebnis empfangen (Timeout).")
-                print("  Firmware möglicherweise trotzdem installiert.")
+                print("\n  Kein rsq dfu_ok/error empfangen.")
+                print("  Scooter aus/ein und prüfen.")
                 self.log.log("dfu_no_result")
 
         return failed_blocks == 0

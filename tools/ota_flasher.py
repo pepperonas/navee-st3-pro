@@ -1089,35 +1089,49 @@ class NaveeOTAFlasher:
                         break
 
                 if rand_response and len(rand_response) > 4:
-                    # Response: b"ok " + 16 raw cipher bytes + b"\r"
-                    # Finde "ok " prefix und extrahiere die Cipher-Bytes danach
+                    # Response Format: b"ok " + [status_byte] + [cipher_bytes] + b"\r"
+                    # APK-Logik (DFUProcessor.java line 416-434):
+                    #   - Byte 3 = Status: 0x00 = XOR decrypt, non-zero = AES decrypt
+                    #   - Bytes 4..(len-1) = Ciphertext
+                    #   - Letztes Byte = \r
                     ok_idx = rand_response.find(b"ok ")
                     if ok_idx >= 0:
-                        cipher_bytes = rand_response[ok_idx + 3:]
+                        after_ok = rand_response[ok_idx + 3:]
                         # Entferne trailing \r
-                        if cipher_bytes.endswith(b"\r"):
-                            cipher_bytes = cipher_bytes[:-1]
+                        if after_ok.endswith(b"\r"):
+                            after_ok = after_ok[:-1]
+
+                        status_byte = after_ok[0] if len(after_ok) > 0 else 0xFF
+                        cipher_bytes = after_ok[1:]  # Cipher NACH dem Status-Byte
+
+                        print(f"  Status-Byte: 0x{status_byte:02X} ({'XOR' if status_byte == 0 else 'AES'})")
                         print(f"  Cipher ({len(cipher_bytes)} Bytes): {hex_str(cipher_bytes[:16])}")
-                        self.log.log("dfu_cipher_received", length=len(cipher_bytes),
-                                     hex=hex_str(cipher_bytes[:16]))
+                        self.log.log("dfu_cipher_received", status=f"0x{status_byte:02X}",
+                                     length=len(cipher_bytes), hex=hex_str(cipher_bytes[:16]))
 
                         if len(cipher_bytes) >= 16:
-                            # AES-128-ECB Entschlüsselung
-                            from Crypto.Cipher import AES as PyCryptoAES
-                            key = AES_KEYS[1]
-                            aes = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB)
-                            decrypted = aes.decrypt(cipher_bytes[:16])
-                            print(f"  Decrypted: {hex_str(decrypted)}")
+                            key = AES_KEYS[1]  # Key-Index 1 (gleich wie bei BLE Auth)
+
+                            if status_byte == 0x00:
+                                # XOR Entschlüsselung (APK: f.g())
+                                decrypted = bytes(c ^ k for c, k in zip(cipher_bytes[:16], key[:16]))
+                                print(f"  XOR Decrypted: {hex_str(decrypted)}")
+                            else:
+                                # AES-128-ECB Entschlüsselung (APK: f.f())
+                                from Crypto.Cipher import AES as PyCryptoAES
+                                aes = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB)
+                                decrypted = aes.decrypt(cipher_bytes[:16])
+                                print(f"  AES Decrypted: {hex_str(decrypted)}")
 
                             # Sende entschlüsselten Wert als "down ble_key" zurück
-                            # Format: b"down ble_key " + raw_decrypted_bytes + b"\r"
+                            # APK: "down ble_key " + [16 decrypted bytes] + "\r"
                             key_cmd = b"down ble_key " + decrypted + b"\r"
 
                             self.last_responses.clear()
                             print(f"  TX: 'down ble_key <{len(decrypted)} bytes>'")
                             await self.client.write_gatt_char(
                                 WRITE_UUID, key_cmd, response=False)
-                            self.log.log("dfu_ble_key_sent")
+                            self.log.log("dfu_ble_key_sent", method="XOR" if status_byte == 0 else "AES")
                             await asyncio.sleep(2.0)
 
                             key_ok = False
@@ -1129,14 +1143,38 @@ class NaveeOTAFlasher:
                                     break
                             if not key_ok:
                                 print("  Key Exchange: keine 'ok' Response")
-                                self.log.log("dfu_key_exchange_no_ok")
+                                # Versuche mit allen 5 Keys
+                                for ki in range(5):
+                                    if ki == 1:
+                                        continue  # Schon getestet
+                                    k = AES_KEYS[ki]
+                                    if status_byte == 0x00:
+                                        dec = bytes(c ^ k2 for c, k2 in zip(cipher_bytes[:16], k[:16]))
+                                    else:
+                                        from Crypto.Cipher import AES as PyCryptoAES
+                                        dec = PyCryptoAES.new(k, PyCryptoAES.MODE_ECB).decrypt(cipher_bytes[:16])
+                                    retry_cmd = b"down ble_key " + dec + b"\r"
+                                    self.last_responses.clear()
+                                    print(f"  Retry Key {ki} ({'XOR' if status_byte == 0 else 'AES'})...")
+                                    await self.client.write_gatt_char(
+                                        WRITE_UUID, retry_cmd, response=False)
+                                    await asyncio.sleep(1.5)
+                                    for resp in self.last_responses:
+                                        if b"ok" in resp:
+                                            print(f"  Key {ki} funktioniert!")
+                                            self.log.log("dfu_key_exchange_ok", key_index=ki)
+                                            key_ok = True
+                                            break
+                                    if key_ok:
+                                        break
+                                if not key_ok:
+                                    self.log.log("dfu_key_exchange_all_failed")
                         else:
                             print(f"  Cipher zu kurz ({len(cipher_bytes)} < 16)")
                     else:
                         print("  ble_rand Response ohne 'ok' prefix")
                 elif rand_response:
                     print(f"  ble_rand Response: {hex_str(rand_response)}")
-                    print("  Key Exchange möglicherweise nicht erforderlich")
                 else:
                     print("  Keine Response auf ble_rand")
                     self.log.log("dfu_ble_rand_no_response")
@@ -1510,14 +1548,14 @@ WARNING: Flashing firmware can permanently brick your scooter!
             print("=" * 60)
 
             tests = [
+                ("XOR Key 1 (Status-Byte Skip!)", 20),
+                ("XOR Key 0", 21),
+                ("XOR Key 2", 22),
+                ("XOR Key 3", 23),
+                ("XOR Key 4", 24),
+                ("AES Key 1 (Status-Byte Skip)", 30),
                 ("Skip (kein Key Exchange)", -1),
-                ("AES Key 0", 0),
-                ("AES Key 1", 1),
-                ("AES Key 2", 2),
-                ("AES Key 3", 3),
-                ("AES Key 4", 4),
-                ("Key 1 + Hex-String statt raw", 10),
-                ("Key 1 + Echo raw cipher zurück", 11),
+                ("Echo raw cipher zurück", 11),
             ]
 
             for test_name, key_idx in tests:
@@ -1572,37 +1610,42 @@ WARNING: Flashing firmware can permanently brick your scooter!
 
                     # Cipher extrahieren
                     cipher_bytes = None
+                    status_byte = None
                     for resp in flasher.last_responses:
                         ok_idx = resp.find(b"ok ")
                         if ok_idx >= 0:
-                            raw = resp[ok_idx + 3:]
-                            if raw.endswith(b"\r"):
-                                raw = raw[:-1]
-                            if len(raw) >= 16:
-                                cipher_bytes = raw[:16]
-                                print(f"  Cipher: {hex_str(cipher_bytes)}")
+                            after_ok = resp[ok_idx + 3:]
+                            if after_ok.endswith(b"\r"):
+                                after_ok = after_ok[:-1]
+                            if len(after_ok) > 1:
+                                status_byte = after_ok[0]
+                                cipher_bytes = after_ok[1:]  # NACH Status-Byte!
+                                print(f"  Status: 0x{status_byte:02X} ({'XOR' if status_byte == 0 else 'AES'})")
+                                print(f"  Cipher: {hex_str(cipher_bytes[:16])}")
                             break
 
-                    if not cipher_bytes:
-                        print("  Kein Cipher empfangen!")
+                    if not cipher_bytes or len(cipher_bytes) < 16:
+                        print("  Kein gültiger Cipher empfangen!")
                         continue
 
                     # Step 3: ble_key — je nach Test-Variante
-                    if key_idx <= 4:
-                        key = AES_KEYS[key_idx]
-                        aes = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB)
-                        decrypted = aes.decrypt(cipher_bytes)
+                    if 20 <= key_idx <= 24:
+                        # XOR mit Status-Byte-Skip (der richtige Weg!)
+                        ki = key_idx - 20
+                        key = AES_KEYS[ki]
+                        decrypted = bytes(c ^ k for c, k in zip(cipher_bytes[:16], key[:16]))
                         key_cmd = b"down ble_key " + decrypted + b"\r"
-                        print(f"  [3] ble_key mit AES Key {key_idx} (raw bytes)")
-                    elif key_idx == 10:
+                        print(f"  [3] XOR decrypt mit Key {ki}")
+                    elif key_idx == 30:
+                        # AES mit Status-Byte-Skip
                         key = AES_KEYS[1]
                         aes = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB)
-                        decrypted = aes.decrypt(cipher_bytes)
-                        key_cmd = ("down ble_key " + decrypted.hex() + "\r").encode("ascii")
-                        print(f"  [3] ble_key mit Key 1 (hex string)")
+                        decrypted = aes.decrypt(cipher_bytes[:16])
+                        key_cmd = b"down ble_key " + decrypted + b"\r"
+                        print(f"  [3] AES decrypt mit Key 1 (Status-Byte übersprungen)")
                     elif key_idx == 11:
-                        key_cmd = b"down ble_key " + cipher_bytes + b"\r"
-                        print(f"  [3] ble_key echo raw cipher")
+                        key_cmd = b"down ble_key " + cipher_bytes[:16] + b"\r"
+                        print(f"  [3] Echo raw cipher (ohne Status-Byte)")
 
                     flasher.last_responses.clear()
                     await flasher.client.write_gatt_char(

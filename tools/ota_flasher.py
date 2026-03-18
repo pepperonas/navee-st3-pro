@@ -828,35 +828,60 @@ class NaveeOTAFlasher:
                      elapsed_s=round(elapsed, 1), rate_bps=round(rate, 0))
 
         if not self.dry_run:
-            # Send EOT (raw byte, nicht als Navee-Frame)
-            print("  Sending EOT (0x04)...")
+            # EOT senden — APK: 5× mit 3000ms Intervall (DFUProcessor.java Zeile 291-312)
+            print("  Sending EOT (0x04) — 5× mit 3s Intervall...")
+            self.last_responses.clear()
+            eot_acked = False
             for eot_attempt in range(5):
+                print(f"    EOT #{eot_attempt + 1}/5...")
                 await self.client.write_gatt_char(
                     WRITE_UUID, bytes([XMODEM_EOT]), response=False)
                 self.log.log("eot_sent", attempt=eot_attempt)
-                await asyncio.sleep(0.5)
 
-                # Prüfe auf ACK oder "rsq dfu_ok\r"
-                for resp in self.last_responses:
-                    if XMODEM_ACK in resp or b"dfu_ok" in resp:
-                        print(f"  EOT bestätigt!")
+                # Warte 3s und prüfe auf ACK
+                for _ in range(30):
+                    await asyncio.sleep(0.1)
+                    for resp in self.last_responses:
+                        if XMODEM_ACK in resp:
+                            print(f"    ACK empfangen!")
+                            eot_acked = True
+                            break
+                    if eot_acked:
                         break
-                else:
-                    continue
-                break
+                if eot_acked:
+                    break
 
-            # Warte auf "rsq dfu_ok\r" oder "rsq dfu_error\r"
-            print("  Warte auf DFU-Ergebnis...")
-            await asyncio.sleep(3.0)
-            for resp in self.last_responses:
-                text = resp.decode('ascii', errors='replace')
-                if "dfu_ok" in text:
-                    print("  >>> DFU OK! Firmware erfolgreich geflasht! <<<")
-                    self.log.log("dfu_complete_ok")
-                elif "dfu_error" in text:
-                    print("  >>> DFU ERROR! Firmware-Flash fehlgeschlagen! <<<")
-                    self.log.log("dfu_complete_error")
-                    return False
+            if eot_acked:
+                print("  EOT bestätigt — warte auf DFU-Ergebnis (10s)...")
+            else:
+                print("  Kein ACK auf EOT — warte trotzdem auf DFU-Ergebnis (10s)...")
+
+            # Warte auf "rsq dfu_ok\r" oder "rsq dfu_error\r" (APK: 3s Timeout)
+            self.last_responses.clear()
+            dfu_result = None
+            for _ in range(100):  # Max 10s
+                await asyncio.sleep(0.1)
+                for resp in self.last_responses:
+                    if b"dfu_ok" in resp:
+                        dfu_result = "OK"
+                        break
+                    if b"dfu_error" in resp:
+                        dfu_result = "ERROR"
+                        break
+                if dfu_result:
+                    break
+
+            if dfu_result == "OK":
+                print("  >>> DFU OK! Firmware erfolgreich installiert! <<<")
+                self.log.log("dfu_complete_ok")
+            elif dfu_result == "ERROR":
+                print("  >>> DFU ERROR! Firmware abgelehnt! <<<")
+                self.log.log("dfu_complete_error")
+                return False
+            else:
+                print("  Kein DFU-Ergebnis empfangen (Timeout).")
+                print("  Firmware möglicherweise trotzdem installiert.")
+                self.log.log("dfu_no_result")
 
         return failed_blocks == 0
 
@@ -1040,8 +1065,10 @@ class NaveeOTAFlasher:
                 print("\n  [DRY RUN] Skipping confirmation prompt")
 
             # --- Step 5: Enter DFU mode ---
-            print("\n[Step 5] Entering DFU mode...")
-            dfu_ok = await self.enter_ota_mode(mcu_type=3)  # 3 = Meter
+            # APK MCU types: 1=Meter, 2=BLDC, 3=BMS, 4=Screen
+            mcu_type = fw_info.get("type_byte", 0x01)  # 0x01 = Meter
+            print(f"\n[Step 5] Entering DFU mode (MCU type {mcu_type})...")
+            dfu_ok = await self.enter_ota_mode(mcu_type=mcu_type)
             if not dfu_ok:
                 print("  DFU-Modus konnte nicht aktiviert werden.")
                 print("  Abbruch — Scooter ist unverändert.")

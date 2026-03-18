@@ -34,3 +34,4 @@ __pycache__/
 .venv/
 tools/firmware/
 tools/navee_api_log.json
+tools/*.log

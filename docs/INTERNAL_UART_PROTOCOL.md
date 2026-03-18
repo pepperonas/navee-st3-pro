@@ -1,0 +1,237 @@
+# Internes UART-Protokoll — Navee ST3 Pro
+
+Dokumentation des internen UART-Kommunikationsprotokolls zwischen Dashboard und Motor-Controller.
+Reverse-Engineered am 18. März 2026, 00:00–02:30 Uhr, Berlin.
+
+---
+
+## Physische Verbindung
+
+### Kabelbelegung (5 Adern im Kabelbaum Dashboard → Controller)
+
+| Farbe   | Funktion        | Spannung  | Hinweis                        |
+|---------|-----------------|-----------|--------------------------------|
+| Schwarz | GND             | 0V        | Referenz-Ground                |
+| Rot     | VCC (Akku)      | 53.04V    | ⚠️ NICHT mit Elektronik verbinden! |
+| Blau    | VCC (Dashboard) | 52.2V     | ⚠️ NICHT mit Elektronik verbinden! |
+| Gelb    | Signal (unbekannt) | 3.76V  | Kein UART — unbekanntes Signal |
+| Grün    | UART TX (Controller → Dashboard) | 4.12V | **Datenleitung — 19200 Baud** |
+
+### UART-Parameter
+
+| Parameter | Wert    |
+|-----------|---------|
+| Baudrate  | 19200   |
+| Data Bits | 8       |
+| Parity    | None    |
+| Stop Bits | 1       |
+| Logic Level | ~3.3–4V |
+
+---
+
+## Frame-Format
+
+Das interne Protokoll nutzt ein **anderes Frame-Format** als das BLE-Protokoll (kein `55 AA` Header).
+
+```
+┌────────┬──────────┬──────────┬────────┐
+│ Header │ DATA     │ Checksum │ Footer │
+│ 1 Byte │ n Bytes  │ 1 Byte   │ 1 Byte │
+└────────┴──────────┴──────────┴────────┘
+```
+
+### Header/Footer-Paarung
+
+Header + Footer = 0xFF (Komplement-Paarung):
+
+| Header | Footer | Richtung / Quelle     |
+|--------|--------|-----------------------|
+| `0x61` | `0x9E` | Dashboard → Controller |
+| `0x64` | `0x9B` | Controller → Dashboard |
+
+### Checksum
+
+**Checksum = SUM(alle Bytes vor Checksum) & 0xFF**
+
+Verifiziert mit allen drei Frame-Typen. ✅
+
+---
+
+## Frame-Typen
+
+### Frame A — Dashboard Status (Header `0x61`, CMD `0x30`)
+
+**Länge:** 15 Bytes | **Frequenz:** ~5x pro Sekunde | **Richtung:** Dashboard → Controller
+
+```
+61 30 0a [MODE] [LIGHT] [B5] [B6] [B7] [B8] [B9] [B10] [B11] [B12] [CHK] 9e
+```
+
+| Byte | Offset | Name      | Werte beobachtet | Beschreibung |
+|------|--------|-----------|-----------------|--------------|
+| 0    | —      | Header    | `0x61`          | Dashboard-Frame |
+| 1    | —      | CMD       | `0x30`          | Status-Kommando |
+| 2    | —      | LEN?      | `0x0a` (10)     | Möglicherweise Länge |
+| 3    | B3     | **Mode**  | `0x35`=ECO, `0x33`=SPORT | Fahrmodus |
+| 4    | B4     | **Light** | `0x04`=AN, `0x00`=AUS | Scheinwerfer |
+| 5    | B5     | Unknown   | `0x88` (136)    | Konstant — möglicherweise Bitfield |
+| 6    | B6     | Unknown   | `0x17` (23)     | Konstant — **Speed-Wert?** |
+| 7    | B7     | Unknown   | `0x15` (21)     | Konstant — **Speed-Wert?** |
+| 8    | B8     | Unknown   | `0x01`          | Konstant |
+| 9-12 | B9-B12 | Padding?  | `0x00 0x00 0x00 0x00` | Immer Null |
+| 13   | —      | Checksum  | variabel        | SUM(Bytes 0-12) & 0xFF |
+| 14   | —      | Footer    | `0x9E`          | Komplement von 0x61 |
+
+#### Beobachtete Varianten
+
+```
+ECO, Licht AN:   61 30 0a 35 04 88 17 15 01 00 00 00 00 89 9e
+ECO, Licht AUS:  61 30 0a 35 00 88 17 15 01 00 00 00 00 85 9e
+SPORT, Licht AN: 61 30 0a 33 04 88 17 15 01 00 00 00 00 87 9e
+```
+
+#### Speed-Verdacht: Bytes 6 und 7
+
+- `0x17` = 23 dezimal — nah an ECO-Max 20 km/h + Offset?
+- `0x15` = 21 dezimal — nah an SPORT-Max 22 km/h?
+- Diese Bytes blieben bei Modus- und Lichtwechsel konstant
+- **Hypothese:** Könnten Speed-Limits sein, die das Dashboard an den Controller sendet
+- **Test erforderlich:** ESP32 MitM — diese Bytes auf höhere Werte setzen
+
+---
+
+### Frame B — Telemetrie (Header `0x61`, CMD `0x31`)
+
+**Länge:** 14 Bytes | **Frequenz:** ~3x pro Sekunde | **Richtung:** Dashboard → Controller (oder bidirektional)
+
+```
+61 31 09 9a 64 cd 80 80 [VAR] 19 00 00 [CHK] 9e
+```
+
+| Byte | Name      | Werte beobachtet | Beschreibung |
+|------|-----------|-----------------|--------------|
+| 0    | Header    | `0x61`          | Dashboard-Frame |
+| 1    | CMD       | `0x31`          | Telemetrie-Kommando |
+| 2    | LEN?      | `0x09` (9)      | Möglicherweise Länge |
+| 3-7  | Static    | `9a 64 cd 80 80` | Konstant |
+| 8    | **Variable** | `0x00`–`0x04` | **Ändert sich live!** Vermutlich Sensor/Throttle |
+| 9    | Static    | `0x19` (25)     | Konstant — Temperatur? (25°C?) |
+| 10-11| Padding   | `0x00 0x00`     | Immer Null |
+| 12   | Checksum  | variabel        | SUM(Bytes 0-11) & 0xFF |
+| 13   | Footer    | `0x9E`          | Komplement von 0x61 |
+
+#### Variable Byte 8
+
+Bei Licht-AUS fiel Byte 8 auf `0x00`/`0x01` (vorher `0x02`–`0x04`).
+Vermutung: Stromverbrauch, PWM-Level, oder Hallsensor-Feedback.
+
+---
+
+### Frame C — Controller Telemetrie (Header `0x64`, CMD `0x26`)
+
+**Länge:** 18 Bytes | **Frequenz:** ~1x pro Sekunde | **Richtung:** Controller → Dashboard
+
+```
+64 26 0d 00 00 04 fb 04 fb 00 30 00 22 d5 48 64 68 9b
+```
+
+| Byte | Name      | Hex   | Dezimal | Beschreibung |
+|------|-----------|-------|---------|--------------|
+| 0    | Header    | `0x64`| —       | Controller-Frame |
+| 1    | CMD       | `0x26`| —       | Telemetrie-Kommando |
+| 2    | LEN?      | `0x0d`| 13      | Möglicherweise Länge |
+| 3-4  | Unknown   | `00 00` | 0, 0  | Speed? (0 km/h im Stillstand) |
+| 5-6  | Unknown   | `04 fb` | 1275  | **Akku-Spannung?** (÷25 ≈ 51V?) |
+| 7-8  | Unknown   | `04 fb` | 1275  | Wiederholung — zweiter Spannungswert? |
+| 9    | Unknown   | `0x00`| 0       | Flags? |
+| 10   | Unknown   | `0x30`| 48      | **Max Speed?** (48 ÷ 2 = 24?) |
+| 11   | Unknown   | `0x00`| 0       | — |
+| 12   | Unknown   | `0x22`| 34      | **Speed Limit?** (`0x22` hex = 22 km/h?) |
+| 13-14| Unknown   | `d5 48` | —     | Odometer? Hash? |
+| 15   | Unknown   | `0x64`| 100     | **Akku %?** (100% = voll?) |
+| 16   | Checksum  | `0x68`| —       | SUM(Bytes 0-15) & 0xFF ✅ |
+| 17   | Footer    | `0x9B`| —       | Komplement von 0x64 |
+
+#### Verdächtige Speed-Werte
+
+- **Byte 10:** `0x30` = 48 dez. Wenn ÷2 = 24 km/h (nah an 22 km/h Limit)
+- **Byte 12:** `0x22` = 34 dez. ABER in Hex gelesen: "22" — **möglicherweise direkt 22 km/h als BCD-Wert!**
+- **Byte 15:** `0x64` = 100 dez — wahrscheinlich Akku-Prozent
+
+**Frame C blieb bei Modus- und Lichtwechsel komplett unverändert!**
+→ Die Werte in Frame C werden vermutlich nur bei Fahrt aktualisiert.
+
+---
+
+### Sonder-Frame — Moduswechsel-Bestätigung (Header `0x64`, CMD `0x23`)
+
+Einmalig beobachtet beim Moduswechsel:
+
+```
+64 23 07 31 30 30 34 19 0a 18 8e 9b
+```
+
+| Byte | Hex | ASCII | Beschreibung |
+|------|-----|-------|--------------|
+| 3-6  | `31 30 30 34` | "1004" | Firmware-Version oder Parameter? |
+| 7    | `0x19` | — | 25 dez — Temperatur? |
+
+---
+
+## Zusammenfassung der identifizierten Bytes
+
+### Frame A — Steuerbare Werte
+
+| Byte | Funktion | ECO+Licht | SPORT+Licht | ECO-Licht | Differenz |
+|------|----------|-----------|-------------|-----------|-----------|
+| 3    | Mode     | `0x35`    | `0x33`      | `0x35`    | Mode-Wechsel |
+| 4    | Light    | `0x04`    | `0x04`      | `0x00`    | Licht-Toggle |
+
+### Frame C — Mögliche Speed-Werte (noch zu verifizieren)
+
+| Byte | Wert  | Hypothese |
+|------|-------|-----------|
+| 10   | `0x30` (48) | Max Speed × 2? |
+| 12   | `0x22` (34) | Speed Limit (BCD: "22" km/h?) |
+| 15   | `0x64` (100) | Akku-Prozent |
+
+---
+
+## Nächste Schritte
+
+### Phase 1 — Weitere Byte-Identifikation
+- [ ] Tempomat ein/aus togglen → welches Byte ändert sich?
+- [ ] Startup Speed ändern → welches Byte?
+- [ ] Roller fahren → Frame C Bytes beobachten (Speed, Distanz)
+- [ ] Bremse betätigen → neuer Frame-Typ?
+
+### Phase 2 — ESP32 MitM
+- [ ] ESP32 zwischen Dashboard (Grün) und Controller klemmen
+- [ ] Frame A abfangen und Byte 6/7 manipulieren (Speed-Werte erhöhen)
+- [ ] Frame C abfangen und Byte 10/12 beobachten während der Fahrt
+- [ ] Checksum neu berechnen und Frame weiterleiten
+
+### Phase 3 — Speed Unlock Strategien
+1. **Byte 6/7 in Frame A erhöhen** — falls das Dashboard die Speed-Limits an den Controller sendet
+2. **Byte 12 in Frame C manipulieren** — falls der Controller sein Speed-Limit dem Dashboard mitteilt
+3. **BLE parallel nutzen** — eigene App die CMD `0x6E` und `0x6B` sendet
+4. **Firmware OTA** — falls UART-MitM nicht ausreicht
+
+---
+
+## Hardware-Ausstattung
+
+| Gerät | Status | Zweck |
+|-------|--------|-------|
+| USB-UART-Adapter (CP2102) | ✅ vorhanden | Mithören/Debugging |
+| Multimeter (TACK DM01M) | ✅ vorhanden | Spannungsmessung |
+| Krokodilklemmen (Bauhaus) | ✅ vorhanden (zu groß) | Provisorisch |
+| Proster 24-in-1 Messleitungen | 📦 bestellt | Professionelle Probes |
+| Krokodilklemmen-Kabel (fein) | 📦 bestellt | Feine Verbindungen |
+| ESP32 DevKit | ❌ noch bestellen! | MitM-Controller |
+| Lötzinn 0.5mm | ❌ noch kaufen | Permanente Verbindungen |
+| Schrumpfschlauch | ❌ noch kaufen | Isolierung |
+
+---
+
+© 2026 Martin Pfeffer | celox.io

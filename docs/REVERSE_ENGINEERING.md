@@ -222,16 +222,32 @@ Am Dashboard-Kabelbaum des ST3 Pro wurde ein Stecker mit 5 Adern identifiziert. 
 - **Rot und Blau** führen volle Akkuspannung (~52–53 V). Diese Leitungen **niemals** direkt an Mikrocontroller oder UART-Adapter anschließen!
 - Die genaue Zuordnung TX/RX (welche Leitung sendet, welche empfängt) muss noch ermittelt werden.
 
-### Nächste Schritte
+### Ergebnis der UART-Analyse (18. März 2026)
 
-1. **UART-Adapter anschließen:**
-   - GND → Schwarz
-   - RXD am Adapter → Gelb (mithören)
-   - Baudrate testen: 9600, 19200, 38400, 57600, 115200
-   - Scooter einschalten und auf Daten prüfen
-2. **Falls Gelb keine Daten liefert:** RXD → Grün testen
-3. **Protokoll analysieren:** Vermutlich gleiches Frame-Format wie BLE (55 AA ... FE FD)
-4. **Bidirektionale Kommunikation:** Nach Identifikation von TX/RX können Kommandos direkt über UART gesendet werden — **ohne BLE-Authentifizierung**
+- **Gelb:** Kein UART-Signal — unbekanntes Signal
+- **Grün:** UART TX (Controller → Dashboard), **19200 Baud**, 8N1
+- Protokoll nutzt ein **komplett anderes Frame-Format** als BLE (kein `55 AA`)
+- Drei Frame-Typen identifiziert (Dashboard-Status, Telemetrie, Controller-Telemetrie)
+- **Keine Authentifizierung** nötig — direkter Hardware-Zugriff
+
+→ Vollständige Dokumentation: [INTERNAL_UART_PROTOCOL.md](INTERNAL_UART_PROTOCOL.md)
+
+### Vergleich BLE ↔ UART
+
+| Eigenschaft | BLE-Protokoll | UART-Protokoll |
+|-------------|---------------|----------------|
+| Frame-Header | `55 AA` | Komplement-Paarung (`0x61/0x9E`, `0x64/0x9B`) |
+| Auth erforderlich | Ja (AES-128, Device-ID) | **Nein** |
+| ECO-Modus | `0x03` | `0x35` |
+| SPORT-Modus | `0x05` | `0x33` |
+| Licht AN | `0x01` | `0x04` |
+| Batterie % | 0x90 data[3] = `0x64` (100%) | Frame C byte 15 = `0x64` (100%) ✅ |
+| Spannung | 0x90 bytes 9-12 = 52944 mV | Frame C bytes 5-6 = 1275 (÷25 ≈ 51V) ✅ |
+| Speed-Limit | 0x70 byte 26 = `0x16` (22), **read-only** | Frame A bytes 6-7 = `0x17`/`0x15`, **vom Dashboard gesendet!** |
+
+### Kritische Erkenntnis: Speed-Limit über UART
+
+Das BLE-Protokoll meldet 22 km/h als unveränderliches Firmware-Limit (CMD `0x6E` wird ACK'd aber ignoriert). Über UART wurde entdeckt, dass das **Dashboard die Speed-Limits aktiv an den Controller sendet** (Frame A, Bytes 6-7). Ein ESP32 als Man-in-the-Middle kann diese Werte abfangen und auf höhere Werte setzen — das umgeht das BLE-Limit auf Hardware-Ebene.
 
 ### Sicherheitshinweise
 

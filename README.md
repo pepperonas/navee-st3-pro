@@ -9,6 +9,7 @@
 [![Language](https://img.shields.io/badge/Language-Kotlin-purple.svg)](https://kotlinlang.org/)
 [![Min SDK](https://img.shields.io/badge/Min%20SDK-26-blue.svg)]()
 [![BLE Protocol](https://img.shields.io/badge/BLE-Custom%20Protocol-informational.svg)](docs/PROTOCOL.md)
+[![UART Protocol](https://img.shields.io/badge/UART-19200%20Baud-orange.svg)](docs/INTERNAL_UART_PROTOCOL.md)
 [![Status](https://img.shields.io/badge/Status-Active%20Development-yellow.svg)]()
 [![Made with](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red.svg)]()
 
@@ -16,7 +17,7 @@
 
 Custom Android App, Reverse Engineering & Protokoll-Dokumentation für den **Navee ST3 Pro** E-Scooter.
 
-Dieses Projekt dokumentiert das proprietäre BLE-Protokoll des Navee ST3 Pro und stellt eine eigene Android-App bereit, die den Scooter unabhängig von der offiziellen Navee-App steuert.
+Dieses Projekt dokumentiert das proprietäre BLE- und UART-Protokoll des Navee ST3 Pro und stellt eine eigene Android-App bereit, die den Scooter unabhängig von der offiziellen Navee-App steuert. Zusätzlich wurde das interne UART-Protokoll zwischen Dashboard und Controller reverse-engineered — Grundlage für ESP32-basiertes Hardware-Tuning.
 
 ---
 
@@ -26,15 +27,21 @@ Dieses Projekt dokumentiert das proprietäre BLE-Protokoll des Navee ST3 Pro und
 
 - **BLE-Verbindung** — Automatisches Scannen und Verbinden mit dem Scooter
 - **Authentifizierung** — AES-128-ECB basierte Auth (5 Keys, kompatibel mit offiziellem Protokoll)
-- **Echtzeit-Telemetrie** — Geschwindigkeit, Akku, Temperatur, Gesamtstrecke
-- **Fahrzeugeinstellungen** — Licht, Tempomat, ERS/Rekuperation, Geschwindigkeitsmodus
-- **Speed Mode** — Umschalten zwischen ECO (3) und SPORT (5)
-- **Scheinwerfer & Rücklicht** — Einzeln schaltbar
-- **Custom Speed Limit** — Benutzerdefinierte Geschwindigkeitsbegrenzung (km/h)
-- **Startup Speed** — Anfahrgeschwindigkeit konfigurierbar (0-5, entspricht 0.0-3.0 m/s)
-- **Batterie-Status** — Detaillierte Akku-Informationen (37 Bytes)
-- **Firmware-Info** — Firmware-Version und Seriennummern auslesen
-- **Material Design 3** — Moderne UI mit Jetpack Compose
+- **BLE-Verbindung** — Auto-Connect per gespeicherter MAC, Fallback auf BLE-Scan
+- **Authentifizierung** — AES-128-ECB Auth mit Device-ID aus BT-Capture
+- **Echtzeit-Telemetrie** — Geschwindigkeit, Akku, Restreichweite, Spannung
+- **Steuerung** — Sperre, Licht (Auto-Sensor), Tempomat, TCS, Blinker-Ton
+- **Fahrmodus** — ECO / SPORT umschaltbar
+- **ERS (Rekuperation)** — Niedrig (30) / Mittel (60) / Hoch (90)
+- **Info-Sheet** — Funktionsübersicht aller Steuerungselemente
+- **Material Design 3** — Dark Theme mit Jetpack Compose
+
+### Hardware Reverse Engineering
+
+- **UART-Protokoll** zwischen Dashboard und Controller entschlüsselt (19200 Baud, 8N1)
+- **Drei Frame-Typen** identifiziert (Dashboard-Status, Telemetrie, Controller-Telemetrie)
+- **Speed-Limit-Kandidaten** in Frame A gefunden — Dashboard sendet Limits an Controller
+- **ESP32 MitM** als nächster Schritt für Hardware-Tuning
 
 ---
 
@@ -54,6 +61,7 @@ navee/
 │   └── settings.gradle.kts
 ├── docs/                      ← Protokoll-Dokumentation
 │   ├── PROTOCOL.md            ← BLE-Protokoll Referenz
+│   ├── INTERNAL_UART_PROTOCOL.md ← Internes UART-Protokoll (Dashboard ↔ Controller)
 │   ├── AUTHENTICATION.md      ← Authentifizierungsablauf
 │   └── REVERSE_ENGINEERING.md ← Reverse-Engineering Ergebnisse
 ├── reverse-engineering/       ← Tools und Skripte zur Analyse

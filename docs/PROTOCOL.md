@@ -281,7 +281,18 @@ Ab ~0x100:   ARM Thumb Maschinencode (Cortex-M, nach FF-Padding)
 
 ---
 
-## Siehe auch
+## Internal UART Protocol
 
-- [AUTHENTICATION.md](AUTHENTICATION.md) — Auth-Flow mit AES-Keys und Device-ID
-- [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) — Methodik und Ergebnisse
+The scooter also uses an internal UART protocol (19200 baud, 8N1) between the dashboard and motor controller. This protocol uses a **different frame format** than BLE (no `55 AA` header, complement header/footer pairs `0x61/0x9E` and `0x64/0x9B`).
+
+> Full documentation: [INTERNAL_UART_PROTOCOL.md](INTERNAL_UART_PROTOCOL.md)
+
+---
+
+## See Also
+
+- [AUTHENTICATION.md](AUTHENTICATION.md) — Auth flow with AES keys and Device-ID
+- [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) — Methodology and findings
+- [INTERNAL_UART_PROTOCOL.md](INTERNAL_UART_PROTOCOL.md) — Dashboard to controller UART protocol
+- [HARDWARE.md](HARDWARE.md) — Wiring, MCU identification, flash layout
+- [ATTACK_VECTORS.md](ATTACK_VECTORS.md) — All attempted approaches

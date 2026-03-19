@@ -1,4 +1,4 @@
-# Navee ST3 Pro — Custom Firmware & Controller App
+# Navee ST3 Pro — Reverse Engineering & Custom Firmware
 
 <p align="center">
   <img src="docs/banner.png" alt="Navee ST3 Pro Scooter Toolkit" width="100%">
@@ -9,81 +9,129 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.1-purple.svg)](https://kotlinlang.org/)
 [![Compose](https://img.shields.io/badge/Jetpack-Compose-4285F4.svg)]()
 [![BLE](https://img.shields.io/badge/BLE-Custom%20Protocol-informational.svg)](docs/PROTOCOL.md)
-[![OTA Flash](https://img.shields.io/badge/OTA-Transfer%20OK-FFA726.svg)](tools/ota_flasher.py)
+[![MCU](https://img.shields.io/badge/MCU-RTL8762C-FF6F00.svg)](docs/HARDWARE.md)
 [![Firmware](https://img.shields.io/badge/Firmware-1--Byte%20Patch-00C853.svg)](docs/REVERSE_ENGINEERING.md#der-patch-1-byte)
-[![Ghidra](https://img.shields.io/badge/Ghidra-ARM%20Cortex--M-FFA726.svg)](tools/ghidra_analysis/)
 [![Auth](https://img.shields.io/badge/Auth-AES--128--ECB-9C27B0.svg)](docs/AUTHENTICATION.md)
-[![Made with](https://img.shields.io/badge/Made%20with-%E2%9D%A4-red.svg)]()
 
 ---
 
-Reverse Engineering, Custom Firmware und Android Controller-App für den **Navee ST3 Pro** E-Scooter.
+Reverse Engineering, Firmware-Analyse und Android Controller-App for the **Navee ST3 Pro** E-Scooter (PID 23452, DE market).
 
-Dieses Projekt hat das proprietäre BLE-Protokoll vollständig reverse-engineered, eine unabhängige Controller-App entwickelt, die Meter-Firmware mit Ghidra analysiert und einen funktionierenden **OTA-Flasher** gebaut. Ergebnis: ein **1-Byte Firmware-Patch** der das `lift_speed_limit`-Flag aktiviert — flashbar über BLE vom MacBook.
+This project has fully reverse-engineered the proprietary BLE protocol, developed an independent controller app, analyzed the meter firmware with Ghidra, built a working OTA flasher, and identified a **1-byte firmware patch** that unlocks custom speed settings. The patch has been verified in disassembly but **cannot be installed via OTA** due to the bootloader's cryptographic integrity check.
 
----
-
-## Highlights
-
-### OTA-Flash — Transfer verifiziert, Bootloader blockiert Patch
-- **1080/1080 Blöcke** erfolgreich übertragen (135 KB, 34-68 Sekunden)
-- Vollständiger DFU-Flow: `dfu_start` → XOR Key Exchange → XMODEM Transfer → EOT → `rsq dfu_ok`
-- **Original-Firmware wird installiert** (2/2 Versuche erfolgreich)
-- **Gepatchte Firmware wird abgelehnt** — Bootloader-Integritätsprüfung (auch 1 Byte im Padding reicht)
-- **MCU:** Realtek RTL8762C BLE SoC (Modul RB8762-35A1) mit externem SPI Flash
-- **Nächster Schritt:** UART Direct Flash via rtltool (P0_3 Download-Modus, umgeht Bootloader)
-
-### 1-Byte Firmware-Patch
-- **File Offset `0xF848`**: `02 D9` (bls) → `00 BF` (NOP)
-- Aktiviert das eingebaute `lift_speed_limit`-Flag im Dashboard-Controller
-- Geschwindigkeit danach frei setzbar via BLE CMD `0x6E [0x01, km/h]`
-- **Patch verifiziert**, aber nur per SWD/JTAG installierbar (nicht per OTA)
-
-### Android Controller-App
-- BLE Auto-Connect, AES-128 Auth, Echtzeit-Telemetrie
-- Steuerung: Sperre, Licht, Tempomat, TCS, Blinker-Ton, ECO/SPORT, ERS
-- Material Design 3 Dark Theme, Keep-Screen-On
-
-### Reverse Engineering Chronologie
-| # | Ansatz | Ergebnis |
-|---|--------|----------|
-| 1 | BLE CMD `0x6E` (Max Speed) | ❌ ACK'd aber ignoriert |
-| 2 | UART MitM (Arduino Nano) | ❌ Controller ignoriert externe Frame-Manipulation |
-| 3 | **Firmware-Patch (Ghidra)** | ✅ **1-Byte NOP aktiviert Custom-Speed-Modus** |
-| 4 | OTA-Flash (macOS) | ⚠️ Transfer OK, Bootloader-Checksumme blockiert Patch |
-| 5 | **UART Direct Flash (rtltool)** | ⏳ **Nächster Schritt** — RTL8762C Download-Modus |
+**Status: Work in Progress** — Speed unlock not yet achieved. Next step: direct SPI flash programming via rtltool.
 
 ---
 
-## Projektstruktur
+## Attack Vectors
+
+| # | Approach | Result |
+|---|----------|--------|
+| 1 | BLE CMD `0x6E` (Max Speed) | :x: ACK'd but ignored |
+| 2 | UART MitM (Arduino) | :x: Controller ignores manipulated frames |
+| 3 | **Firmware Patch (Ghidra)** | :white_check_mark: **1-byte NOP enables custom speed mode** |
+| 4 | OTA Flash (BLE XMODEM) | :warning: Transfer OK, bootloader rejects any modification |
+| 5 | **SPI Flash Direct (rtltool)** | :hourglass_flowing_sand: **Next step** — bypasses bootloader |
+| 6 | Controller Swap (AliExpress) | :white_check_mark: Proven by community |
+
+> Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
+
+---
+
+## Hardware
+
+**Dashboard MCU:** Realtek RTL8762C BLE SoC (Module RB8762-35A1)
+- ARM Cortex-M4F, integrated BLE radio
+- External SPI flash (firmware stored here)
+- UART download mode via P0_3 pin (no SWD needed)
+
+**Internal wiring:** 5-wire cable (GND, 53V battery, 52V dashboard, unknown, UART 19200 baud)
+
+> Full details: [`docs/HARDWARE.md`](docs/HARDWARE.md)
+
+---
+
+## The Patch
+
+The meter firmware contains a `lift_speed_limit` function (FUN_0800ad02):
+
+```c
+if (sys_stc[0x4a] == 0x02) {                // lift_speed_limit flag
+    return sys_stc[0x47] * 10 + 5;           // Custom Speed (BLE CMD 0x6E)
+} else {
+    return PID_DEFAULT_TABLE[area_code];      // 22.5 km/h (Germany)
+}
+```
+
+**1-byte patch** at file offset `0xF848`: `02 D9` (BLS) to `00 BF` (NOP)
+- Forces the code to always use the custom speed path
+- Speed then settable via BLE CMD `0x6E [0x01, km/h]`
+
+> Full analysis: [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md)
+
+---
+
+## OTA Flasher
+
+The OTA flasher implements the complete DFU protocol reverse-engineered from the official Navee APK:
+
+```
+Step 1: BLE Connect + AES-128-ECB Auth
+Step 2: "down dfu_start 1\r"      -> "ok\r"
+Step 3: "down ble_rand\r"         -> Status 0x00 + 16-byte cipher
+Step 4: XOR decrypt with AES Key  -> "down ble_key <decrypted>\r" -> "ok\r"
+Step 5: Wait for 0x43 ('C')       -> XMODEM Ready
+Step 6: 1080 x 128-byte blocks    -> SOH + Seq + ~Seq + Data + CRC-16
+Step 7: EOT (0x04)                -> "rsq dfu_ok\r"
+```
+
+**Verified:** 1080/1080 blocks, 0 errors, ~34s, 4049 bytes/s. Original firmware installs successfully (2/2). Patched firmware is rejected by bootloader integrity check (0/10 attempts with various checksum compensations).
+
+---
+
+## Android Controller App
+
+- BLE auto-connect, AES-128 auth, real-time telemetry
+- Controls: Lock, headlight, cruise, TCS, turn sound, ECO/SPORT, ERS
+- Material Design 3 dark theme, keep-screen-on
+
+---
+
+## Project Structure
 
 ```
 navee/
-├── android/                     ← Controller-App (Kotlin/Compose)
+├── android/                     <- Controller App (Kotlin/Compose)
 │   └── app/src/main/java/de/pepperonas/navee/
-│       ├── ble/                 ← BLE Manager, Protokoll, Auth
-│       ├── ui/                  ← Dashboard UI
-│       └── viewmodel/           ← State Management
+│       ├── ble/                 <- BLE Manager, Protocol, Auth
+│       ├── ui/                  <- Dashboard UI
+│       └── viewmodel/          <- State Management
 ├── docs/
-│   ├── PROTOCOL.md              ← BLE-Protokoll (Commands, Status, Telemetrie, DFU)
-│   ├── AUTHENTICATION.md        ← AES-128 Auth-Flow
-│   ├── REVERSE_ENGINEERING.md   ← Ghidra-Analyse, Patch-Details, alle 5 Ansätze
-│   └── SWD_FLASH_GUIDE.md       ← Direct Flash Anleitung (RTL8762C/rtltool)
+│   ├── PROTOCOL.md              <- BLE protocol (commands, status, telemetry, DFU)
+│   ├── AUTHENTICATION.md        <- AES-128 auth flow
+│   ├── REVERSE_ENGINEERING.md   <- Ghidra analysis, patch details, OTA attempts
+│   ├── HARDWARE.md              <- Wiring, MCU identification, flash layout
+│   ├── INTERNAL_UART_PROTOCOL.md <- Dashboard <-> controller UART protocol
+│   ├── ATTACK_VECTORS.md        <- All attempted approaches with honest results
+│   └── SWD_FLASH_GUIDE.md       <- Direct flash guide (RTL8762C/rtltool)
 ├── tools/
 │   ├── firmware/
-│   │   ├── navee_meter_v2.0.3.1_ORIGINAL.bin  ← Original-Firmware (135 KB)
-│   │   └── navee_meter_v2.0.3.1_PATCHED.bin   ← Gepatchte Firmware (1 Byte Diff)
-│   ├── firmware_grabber.py      ← Firmware von Navee-API herunterladen
-│   ├── ota_flasher.py           ← BLE OTA Flasher (macOS/bleak) — VERIFIZIERT
-│   └── ghidra_analysis/         ← Ghidra Headless Scripts
-└── archive/                     ← UART MitM (gescheiterter Ansatz 2)
+│   │   ├── navee_meter_v2.0.3.1_ORIGINAL.bin
+│   │   └── navee_meter_v2.0.3.1_PATCHED.bin
+│   ├── firmware_grabber.py      <- Download firmware from Navee API
+│   ├── ota_flasher.py           <- BLE OTA flasher (macOS/bleak)
+│   └── ghidra_analysis/         <- 10 Ghidra headless scripts
+└── archive/                     <- UART MitM (failed approach #2)
+    ├── INTERNAL_UART_PROTOCOL.md
+    ├── UART_MITM_GUIDE.md
+    └── navee_uart_mitm_nano/    <- Arduino MitM sketch
 ```
 
 ---
 
-## Schnellstart
+## Quick Start
 
-### App bauen & installieren
+### Build & install the Android app
 
 ```bash
 cd android/
@@ -91,99 +139,37 @@ cd android/
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### Firmware flashen (macOS)
-
-Voraussetzung: `pip3 install bleak pycryptodome`
+### Download firmware from Navee servers
 
 ```bash
-cd tools/
-
-# 1. Scooter-Info lesen (kein Risiko)
-python3 ota_flasher.py --read-info
-
-# 2. DFU-Entry testen (kein Flash, sicher)
-python3 ota_flasher.py --test-dfu-entry
-
-# 3. Key Exchange testen (findet den richtigen AES-Key)
-python3 ota_flasher.py --test-key-exchange
-
-# 4. Original-Firmware flashen (OTA-Prozess verifizieren)
-python3 ota_flasher.py firmware/navee_meter_v2.0.3.1_ORIGINAL.bin
-
-# 5. Gepatchte Firmware flashen (Speed-Limit aufheben)
-python3 ota_flasher.py firmware/navee_meter_v2.0.3.1_PATCHED.bin
-
-# 6. Rollback jederzeit
-python3 ota_flasher.py firmware/navee_meter_v2.0.3.1_ORIGINAL.bin
-```
-
-### Firmware von Navee-Server herunterladen
-
-```bash
+pip3 install requests
 python3 tools/firmware_grabber.py
 ```
 
----
+### OTA flash (macOS — original firmware only)
 
-## OTA-Flash Details
-
-Der OTA-Flasher implementiert das vollständige DFU-Protokoll aus der dekompilierten offiziellen Navee-App:
-
-```
-Step 1: BLE Connect + Auth (Device-ID)
-Step 2: "down dfu_start 3\r"      → "ok\r"
-Step 3: "down ble_rand\r"         → Status 0x00 + 16-Byte Cipher
-Step 4: XOR decrypt mit AES Key 1 → "down ble_key <decrypted>\r" → "ok\r"
-Step 5: Warte auf 0x43 ('C')      → XMODEM Ready
-Step 6: 1080 × 128-Byte Blöcke    → SOH + Seq + ~Seq + Data + CRC-16
-Step 7: EOT (0x04)                → "rsq dfu_ok\r"
+```bash
+pip3 install bleak pycryptodome
+cd tools/
+python3 ota_flasher.py --read-info
+python3 ota_flasher.py firmware/navee_meter_v2.0.3.1_ORIGINAL.bin
 ```
 
-**Verifiziertes Ergebnis:** 1080/1080 Blöcke, 0 Fehler, 34.1 Sekunden, 4049 Bytes/s.
+> Note: Only the unmodified original firmware can be installed via OTA.
+> The bootloader rejects any modified binary. See [docs/ATTACK_VECTORS.md](docs/ATTACK_VECTORS.md).
 
 ---
 
-## Technische Details
+## Legal Notice
 
-### Der Patch im Detail
-
-Die Meter-Firmware enthält eine `lift_speed_limit`-Funktion (FUN_0800ad02):
-
-```c
-if (sys_stc[0x4a] == 0x02) {                // lift_speed_limit Flag
-    return sys_stc[0x47] * 10 + 5;           // → Custom Speed!
-} else {
-    return PID_DEFAULT_TABLE[area_code];      // → 22.5 km/h (DE)
-}
-```
-
-Der Patch (NOP statt bls) sorgt dafür, dass das Flag **immer** auf Custom steht. Danach bestimmt `sys_stc[0x47]` — setzbar via BLE CMD `0x6E` — die Geschwindigkeit.
-
-→ Vollständige Analyse: [`docs/REVERSE_ENGINEERING.md`](docs/REVERSE_ENGINEERING.md#ghidra-analyse-ergebnisse-detailliert)
-
-### BLE-Protokoll
-
-| Element | Wert |
-|---------|------|
-| Service UUID | `0000d0ff-3c17-d293-8e48-14fe2e4da212` |
-| Frame-Format | `[55 AA] [Flag] [CMD] [LEN] [DATA] [Checksum] [FE FD]` |
-| Auth | AES-128-ECB, 5 Schlüssel, Device-ID aus BT-Capture |
-| DFU | Text-Commands + XMODEM, XOR Key Exchange, CRC-16 |
-
-→ Vollständige Referenz: [`docs/PROTOCOL.md`](docs/PROTOCOL.md)
+> Modifying the speed limit of an e-scooter may void its type approval (ABE) and insurance coverage. Operating a modified e-scooter on public roads may be illegal in your jurisdiction. This project is for research and protocol documentation purposes only. Use at your own risk and only on private property.
 
 ---
 
-## Rechtlicher Hinweis
-
-> Geschwindigkeitsänderungen am E-Scooter können zum Erlöschen der Betriebserlaubnis führen. Dieses Projekt dient der Forschung und Protokoll-Dokumentation. Nutzung auf eigene Verantwortung.
-
----
-
-## Autor
+## Author
 
 **Martin Pfeffer** — [celox.io](https://celox.io) · [GitHub](https://github.com/pepperonas)
 
-## Lizenz
+## License
 
 [MIT](LICENSE)

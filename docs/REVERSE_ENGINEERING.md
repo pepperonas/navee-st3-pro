@@ -395,21 +395,55 @@ ble_key Response: "ok\r" ← ERFOLG!
 XMODEM Ready: 0x43 0x43 ← BEREIT FÜR TRANSFER!
 ```
 
-#### Nächster Schritt: SWD/JTAG Direct Flash
+#### Dashboard-Chip identifiziert: Realtek RTL8762C (19. März 2026)
 
-OTA-Patching ist durch den Bootloader-Integritätsschutz blockiert. Der einzige verbleibende Weg ist **direktes Flashen über die Debug-Schnittstelle (SWD)**.
+Das Dashboard-Gehäuse wurde geöffnet (verklebt + Niete). Der Chip ist:
+
+- **MCU:** Realtek RTL8762C BLE SoC (ARM Cortex-M4F, 40 MHz)
+- **Modul:** RB8762-35A1 (Navee Custom Module)
+- **SN:** 251210A5629ABB3E
+- **FCC ID:** 2A4GZ-RB87623SAI
+- **Flash:** Externer SPI Flash, Memory-Mapped ab 0x00800000
+
+**Konsequenzen:**
+- Kein STM32 — Peripherie-Adressen (0x40011000 = UART0) passen zum RTL8762C
+- SRAM bei 0x00200000 (nicht 0x20000000 wie bei STM32)
+- Flash bei 0x00800000 (SPI Flash, nicht interner Flash)
+- OTA-Header "T2202" ist Realtek OTA Format
+- Firmware wird bei ~0x00820000 im Flash gespeichert
+- Download-Modus über **Pin P0_3** auf GND beim Boot (kein SWD nötig!)
+- **rtltool** (github.com/cyber-murmel/rtltool) kann den Flash direkt lesen/schreiben
+
+**Flash-Layout (rekonstruiert):**
+
+| Adressbereich | Inhalt |
+|---------------|--------|
+| 0x00800000 - 0x0081FFFF | Bootloader + BLE Stack (128 KB) |
+| 0x00820000 - 0x00841BFF | Application Firmware (135 KB, unser Binary) |
+| 0x0080E000 - 0x0080E3FF | FTL (Flash Translation Layer) |
+| 0x0080E400 - 0x0080EFFF | Configuration Data |
+
+#### Dashboard-Kurzschluss (19. März 2026, Abend)
+
+Beim Versuch die Platine aus dem geöffneten Dashboard zu lösen (Scooter war AN) gab es einen Kurzschluss. Dashboard vermutlich beschädigt. Power-Button reagierte nicht mehr, Akku wurde manuell über Wago-Klemmen getrennt.
+
+**Status:** Dashboard muss ersetzt werden. Das defekte Board kann als Entwicklungsboard für Flash-Dump-Experimente mit rtltool verwendet werden.
+
+#### Nächster Schritt: SPI Flash Direct via rtltool
+
+OTA-Patching ist durch den Bootloader-Integritätsschutz blockiert. Der einzige verbleibende Weg ist **direktes Flashen des SPI Flash über den UART Download-Modus** des RTL8762C.
 
 Vollständige Anleitung: [`docs/SWD_FLASH_GUIDE.md`](SWD_FLASH_GUIDE.md)
 
 #### Architektur-Erkenntnis
 
-- Das Speed-Limit wird in der **Meter-Firmware** (Dashboard) berechnet
+- Das Speed-Limit wird in der **Meter-Firmware** (RTL8762C Dashboard) berechnet
 - Der Wert wird über UART Frame A an den Motor-Controller gesendet
 - Die Speed-Lookup-Funktion (FUN_0800ad02) nutzt den Area-Code für länderspezifische Limits
 - Alle bisherigen Ansätze (BLE CMD, UART MitM, FW-Patch via OTA) konnten das Limit nicht ändern
 - Der BLDC Motor-Controller scheint KEIN eigenes Speed-Limit zu haben (basierend auf der UART-Analyse)
 - **Das Limit ist definitiv in der Meter-Firmware** — der Patch ist verifiziert, aber OTA-Installation durch Bootloader-Checksumme blockiert
-- **Nächster Schritt: SWD/JTAG Direct Flash** — umgeht den Bootloader komplett
+- **Nächster Schritt: SPI Flash Direct Programming** via rtltool — umgeht den Bootloader komplett
 
 ---
 

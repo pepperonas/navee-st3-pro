@@ -771,24 +771,26 @@ class NaveeOTAFlasher:
                 await self.client.write_gatt_char(
                     WRITE_UUID, bytes(xmodem_block), response=False)
 
-                # Warte auf ACK — max 200ms, poll alle 5ms
-                for _ in range(40):
+                # Warte auf ACK — max 500ms, poll alle 5ms
+                for _ in range(100):
                     await asyncio.sleep(0.005)
-                    for resp in self.last_responses:
-                        if XMODEM_ACK in resp:
+                    if self.last_responses:
+                        resp = self.last_responses[-1]
+                        # ACK: erstes Byte 0x06 oder 0x06 irgendwo in kurzem Paket
+                        if len(resp) <= 4 and (resp[0] == XMODEM_ACK or XMODEM_ACK in resp):
                             block_ok = True
+                            self.last_responses.clear()
                             break
-                        if XMODEM_CAN in resp:
+                        if XMODEM_CAN in resp and len(resp) <= 4:
                             print(f"\n\n  ABORT: Scooter hat Transfer abgebrochen!")
                             return False
-                        if XMODEM_NAK in resp:
-                            # NAK: Block nochmal senden
+                        if XMODEM_NAK in resp and len(resp) <= 4:
                             self.last_responses.clear()
                             await self.client.write_gatt_char(
                                 WRITE_UUID, bytes(xmodem_block), response=False)
-                            break
-                    if block_ok:
-                        break
+                        # Navee-Telemetrie-Frames (55 AA) ignorieren
+                        if len(resp) > 10 and resp[0] == 0x55:
+                            self.last_responses.clear()
 
             except Exception as e:
                 err = str(e)
@@ -801,7 +803,7 @@ class NaveeOTAFlasher:
                 successful_blocks += 1
             else:
                 failed_blocks += 1
-                print(f"\n  WARNING: Block {block_num} failed after {retries} attempts!")
+                print(f"\n  WARNING: Block {block_num} failed!")
                 self.log.log("block_failed", block=block_num)
                 if failed_blocks >= 5:
                     print(f"\n  ABORT: Too many failed blocks ({failed_blocks}). Stopping transfer.")

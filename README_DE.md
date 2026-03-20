@@ -25,7 +25,7 @@
 
 Reverse Engineering, Firmware-Analyse und Android-Controller-App fur den **Navee ST3 Pro** E-Scooter (PID 23452, DE-Markt).
 
-Dieses Projekt hat das proprietare BLE-Protokoll vollstandig dekodiert, eine unabhangige Controller-App entwickelt, die Tacho-Firmware mit Ghidra analysiert, einen funktionierenden OTA-Flasher gebaut, den kompletten SPI-Flash per UART ausgelesen, **einen 1-Byte-Firmware-Patch direkt in den Flash geschrieben** mit [rtltool](https://github.com/wuwbobo2021/rtltool), den **RTL8762C-SHA-256-Algorithmus geknackt** und `patch_firmware.py` erstellt — ein vollautomatisches Werkzeug, das jede Firmware-Version patcht und ein gultig signiertes OTA-Binary erzeugt.
+Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine unabhängige Controller-App entwickelt, die Tacho-Firmware mit Ghidra analysiert, einen funktionierenden OTA-Flasher gebaut, den kompletten SPI-Flash per UART ausgelesen, **einen 1-Byte-Firmware-Patch direkt in den Flash geschrieben** mit [rtltool](https://github.com/wuwbobo2021/rtltool), den **RTL8762C-SHA-256-Algorithmus geknackt** und `patch_firmware.py` erstellt — ein vollautomatisches Werkzeug, das jede Firmware-Version patcht und ein gültig signiertes OTA-Binary erzeugt.
 
 ---
 
@@ -35,29 +35,29 @@ Dieses Projekt hat das proprietare BLE-Protokoll vollstandig dekodiert, eine una
 |---|--------|----------|
 | 1 | BLE CMD `0x6E` (Max Speed) | Fehlgeschlagen — ACK erhalten, von Firmware ignoriert |
 | 2 | UART MitM (Arduino) | Fehlgeschlagen — Controller ignoriert manipulierte Frames |
-| 3 | **Firmware-Patch (Ghidra)** | **Bestatigt — 1-Byte-NOP aktiviert benutzerdefinierten Geschwindigkeitsmodus** |
-| 4 | OTA-Flash (BLE XMODEM) | Fehlgeschlagen — Ubertragung OK, Bootloader verwarf alle 10 Patch-Versuche |
-| 5 | **SPI-Flash direkt (rtltool)** | **Bestatigt — Patch geschrieben und per Read-Back verifiziert** |
-| 6 | Controller-Tausch (AliExpress) | Von der Community bestatigt |
+| 3 | **Firmware-Patch (Ghidra)** | **Bestätigt — 1-Byte-NOP aktiviert benutzerdefinierten Geschwindigkeitsmodus** |
+| 4 | OTA-Flash (BLE XMODEM) | Fehlgeschlagen — Übertragung OK, Bootloader verwarf alle 10 Patch-Versuche |
+| 5 | **SPI-Flash direkt (rtltool)** | **Bestätigt — Patch geschrieben und per Read-Back verifiziert** |
+| 6 | Controller-Tausch (AliExpress) | Von der Community bestätigt |
 
-> Vollstandige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
+> Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 
 ---
 
 ## SPI-Flash Direktpatch
 
-**Das ist der Durchbruch.** Nachdem OTA-Patching durch die Integritatsprufung des Bootloaders in 10 Versuchen mit allen erdenklichen Prufsmmen blockiert wurde, haben wir den kompletten SPI-Flash per UART ausgelesen und den Patch direkt geschrieben — am Bootloader vorbei.
+**Das ist der Durchbruch.** Nachdem OTA-Patching durch die Integritatsprüfung des Bootloaders in 10 Versuchen mit allen erdenklichen Prüfsummen blockiert wurde, haben wir den kompletten SPI-Flash per UART ausgelesen und den Patch direkt geschrieben — am Bootloader vorbei.
 
-### Der Weg zur Losung
+### Der Weg zur Lösung
 
-1. **MCU identifiziert:** Display am 19. Marz geoffnet, Realtek RTL8762C BLE-SoC gefunden (Modul RB8762-35A1). Der Kurzschluss beim Zerlegen des Displays ermoglichte direkten Zugriff auf die Platine.
+1. **MCU identifiziert:** Display am 19. März geöffnet, Realtek RTL8762C BLE-SoC gefunden (Modul RB8762-35A1). Der Kurzschluss beim Zerlegen des Displays ermöglichte direkten Zugriff auf die Platine.
 2. **rtltool gefunden:** [wuwbobo2021/rtltool](https://github.com/wuwbobo2021/rtltool) — Open-Source-Tool zur Flash-Programmierung des RTL8762C per UART
 3. **Download-Modus aktiviert:** Pin P0_3 wahrend des Bootvorgangs auf LOW gehalten
-4. **512-KB-SPI-Flash ausgelesen:** Vollstandiges Backup inklusive Bootloader, BLE-Stack und Anwendungs-Firmware
-5. **Aktive Firmware lokalisiert:** OTA-Firmware-Code bei Flash-Offset `0x0E020` gefunden, die **aktive Kopie** lauft jedoch in einer anderen Bank
+4. **512-KB-SPI-Flash ausgelesen:** Vollständiges Backup inklusive Bootloader, BLE-Stack und Anwendungs-Firmware
+5. **Aktive Firmware lokalisiert:** OTA-Firmware-Code bei Flash-Offset `0x0E020` gefunden, die **aktive Kopie** läuft jedoch in einer anderen Bank
 6. **Patch-Stelle gefunden:** Byte-Kontext (`0E 2D 02 D8 04 E0 0A 2D 02 D9`) im Flash-Dump gesucht — gefunden bei Flash-Offset `0x1D448`
-7. **Patch geschrieben:** 2 Bytes bei Flash-Adresse `0x0081D448` geandert: `02 D9` (BLS) zu `00 BF` (NOP)
-8. **Verifiziert:** Read-Back bestatigt `00 BF` an der Patch-Stelle
+7. **Patch geschrieben:** 2 Bytes bei Flash-Adresse `0x0081D448` geändert: `02 D9` (BLS) zu `00 BF` (NOP)
+8. **Verifiziert:** Read-Back bestätigt `00 BF` an der Patch-Stelle
 
 ### Hardware-Aufbau
 
@@ -120,41 +120,41 @@ SPI-Flash (512 KB, memory-mapped ab 0x00800000)
 
 ### Warum OTA-Patching scheiterte (10 Versuche)
 
-Der RTL8762C-Bootloader pruft Firmware-Images mit einer ROM-Funktion bei Adresse `0x601B9C` (in der Mask-ROM des Chips — nicht per Flash-Dump lesbar). Diese Funktion vergleicht ein Feld im Image-Header (`ctrl_header[2:3]`) mit einem uber die Nutzdaten berechneten Wert. Der Algorithmus ist proprietar und ohne Chip-Decapping oder ROM-Dump nicht bestimmbar.
+Der RTL8762C-Bootloader prüft Firmware-Images mit einer ROM-Funktion bei Adresse `0x601B9C` (in der Mask-ROM des Chips — nicht per Flash-Dump lesbar). Diese Funktion vergleicht ein Feld im Image-Header (`ctrl_header[2:3]`) mit einem über die Nutzdaten berechneten Wert. Der Algorithmus ist proprietar und ohne Chip-Decapping oder ROM-Dump nicht bestimmbar.
 
-**Getestete Prufsmmen (alle gescheitert):** CRC-16 (XMODEM, CCITT, ARC, MODBUS), CRC-32 (Standard, STM32), XOR-32, XOR-8, SUM-8, SUM-16, SUM-32, Fletcher-16/32, Adler-32, MD5, SHA-1, SHA-256, HMAC-MD5, Brute-Force-CRC an jeder Position.
+**Getestete Prüfsummen (alle gescheitert):** CRC-16 (XMODEM, CCITT, ARC, MODBUS), CRC-32 (Standard, STM32), XOR-32, XOR-8, SUM-8, SUM-16, SUM-32, Fletcher-16/32, Adler-32, MD5, SHA-1, SHA-256, HMAC-MD5, Brute-Force-CRC an jeder Position.
 
-Die ROM-Funktion fuhrt zusatzlich eine Signaturprufung durch, die das erste 32-Bit-Wort gegen den Magic-Wert `0x8721BEE2` pruft, sowie eine Boot-Prufsmme uber `add8CheckSum`. Keines dieser Verfahren konnte in jenen 10 Versuchen extern nachgebildet werden.
+Die ROM-Funktion führt zusätzlich eine Signaturprüfung durch, die das erste 32-Bit-Wort gegen den Magic-Wert `0x8721BEE2` prüft, sowie eine Boot-Prüfsumme über `add8CheckSum`. Keines dieser Verfahren konnte in jenen 10 Versuchen extern nachgebildet werden.
 
-**Der direkte SPI-Flash-Schreibzugriff umgeht ALLE diese Prufungen**, da wir direkt in die aktive Firmware-Bank schreiben — nicht uber den OTA-Update-Pfad.
+**Der direkte SPI-Flash-Schreibzugriff umgeht ALLE diese Prüfungen**, da wir direkt in die aktive Firmware-Bank schreiben — nicht über den OTA-Update-Pfad.
 
-### Schlusselerkenntnis: Dual-Bank-Architektur
+### Schlüsselerkenntnis: Dual-Bank-Architektur
 
 Der RTL8762C speichert Firmware in zwei Banken:
-- **Bank A** (0x804000): Aktive Firmware, die der Prozessor ausfuhrt
-- **Bank B** (0x844000): OTA-Staging-Bereich, der neue Firmware empfangt
+- **Bank A** (0x804000): Aktive Firmware, die der Prozessor ausführt
+- **Bank B** (0x844000): OTA-Staging-Bereich, der neue Firmware empfängt
 
-OTA-Updates schreiben in Bank B, prufen die Prufsumme und kopieren bei Neustart nach Bank A. Alle 10 OTA-Versuche schrieben erfolgreich in Bank B (alle 1080 Blocke bestatigt), aber der Verifizierungsschritt verwarf die gepatchte Firmware — sie wurde nie nach Bank A kopiert.
+OTA-Updates schreiben in Bank B, prufen die Prüfsumme und kopieren bei Neustart nach Bank A. Alle 10 OTA-Versuche schrieben erfolgreich in Bank B (alle 1080 Blöcke bestätigt), aber der Verifizierungsschritt verwarf die gepatchte Firmware — sie wurde nie nach Bank A kopiert.
 
-**Der direkte Flash-Schreibzugriff zielt direkt auf Bank A**, der Verifizierungsschritt wird vollstandig ubergangen.
+**Der direkte Flash-Schreibzugriff zielt direkt auf Bank A**, der Verifizierungsschritt wird vollständig übergangen.
 
 ---
 
 ## patch_firmware.py — Automatischer OTA-Patcher
 
-Nach dem Knacken des RTL8762C-SHA-256-Algorithmus aus dem Realtek-Bee2-SDK-Quellcode (`silent_dfu_flash.c`) haben wir `patch_firmware.py` implementiert — ein vollautomatisches Werkzeug, das jede Navee-Tacho-Firmware-Version patcht und ein OTA-Binary mit korrekter SHA-256-Prufsumme erzeugt.
+Nach dem Knacken des RTL8762C-SHA-256-Algorithmus aus dem Realtek-Bee2-SDK-Quellcode (`silent_dfu_flash.c`) haben wir `patch_firmware.py` implementiert — ein vollautomatisches Werkzeug, das jede Navee-Tacho-Firmware-Version patcht und ein OTA-Binary mit korrekter SHA-256-Prüfsumme erzeugt.
 
 ### Der SHA-256-Durchbruch
 
 Die Bee2-SDK-Funktion `slient_dfu_check_sha256()` hasht nicht das gesamte Image. Sie hasht drei spezifische Bereiche des Image-Headers und der Nutzdaten:
 
-| Bereich | Offset-Bereich | Grosse | Beschreibung |
+| Bereich | Offset-Bereich | Größe | Beschreibung |
 |---------|---------------|--------|--------------|
 | 1 | `header[12:372]` | 360 Bytes | Nach `ctrl_header`, vor SHA-256-Feld |
 | 2 | `header[404:752]` | 348 Bytes | Nach SHA-256-Feld, vor RSA-Bereich |
-| 3 | `header[1008:1024] + payload` | 16 + payload_len Bytes | Ende des Headers plus vollstandige Nutzdaten |
+| 3 | `header[1008:1024] + payload` | 16 + payload_len Bytes | Ende des Headers plus vollständige Nutzdaten |
 
-SHA-256 wird uber die Konkatenation dieser drei Bereiche berechnet. Das Ergebnis wird bei `header[372:404]` gespeichert.
+SHA-256 wird über die Konkatenation dieser drei Bereiche berechnet. Das Ergebnis wird bei `header[372:404]` gespeichert.
 
 ### patch_firmware.py-Workflow
 
@@ -169,24 +169,24 @@ python3 tools/patch_firmware.py firmware.bin
 python3 tools/patch_firmware.py firmware.bin -o firmware_patched_ota.bin
 ```
 
-Das Werkzeug fuhrt folgende Schritte in dieser Reihenfolge aus:
+Das Werkzeug führt folgende Schritte in dieser Reihenfolge aus:
 
 1. Validierung des Navee-OTA-Headers (Modell, Typ, Version)
 2. Validierung des RTL8762C-Image-Headers (ic_type, image_id, payload_len)
 3. Verifizierung des ursprunglichen SHA-256, um die Integritat der Firmware-Datei zu bestatigen
 4. Suche nach dem Patch-Muster `0E 2D 02 D8 04 E0 0A 2D 02 D9` per Kontext
 5. Ersetzen von `02 D9` (BLS) durch `00 BF` (NOP) am gefundenen Offset
-6. Neuberechnung von SHA-256 uber die drei SDK-definierten Bereiche
+6. Neüberechnung von SHA-256 über die drei SDK-definierten Bereiche
 7. Zuruckschreiben des korrigierten Hashs in den Image-Header
 8. Verifizierung des neuen SHA-256 vor dem Schreiben der Ausgabedatei
 
-**Ergebnis:** Das gepatchte OTA-Binary enthalt einen gultig berechneten SHA-256. Die Ubertragung per `ota_flasher.py` lauft vollstandig durch (1080/1080 Blocke), und die SHA-256-Prufung des Bootloaders besteht. Die Firmware wird beim Neustart in Bank A installiert.
+**Ergebnis:** Das gepatchte OTA-Binary enthält einen gültig berechneten SHA-256. Die Übertragung per `ota_flasher.py` läuft vollständig durch (1080/1080 Blöcke), und die SHA-256-Prüfung des Bootloaders besteht. Die Firmware wird beim Neustart in Bank A installiert.
 
 ---
 
 ## Der Patch
 
-Die Tacho-Firmware enthalt eine `lift_speed_limit`-Funktion, die per Ghidra-Analyse identifiziert wurde:
+Die Tacho-Firmware enthält eine `lift_speed_limit`-Funktion, die per Ghidra-Analyse identifiziert wurde:
 
 ```c
 if (sys_stc[0x4a] == 0x02) {                // lift_speed_limit-Flag
@@ -212,19 +212,19 @@ Der NOP entfernt den bedingten Sprung, sodass der Code immer in den benutzerdefi
 **Display-MCU:** Realtek RTL8762C BLE-SoC (Modul RB8762-35A1)
 - ARM Cortex-M4F, integriertes BLE-2,4-GHz-Funkmodul
 - Externer SPI-Flash, 512 KB, memory-mapped ab 0x00800000
-- UART-Download-Modus uber P0_3-Pin (kein SWD/JTAG erforderlich)
+- UART-Download-Modus über P0_3-Pin (kein SWD/JTAG erforderlich)
 - MAC: `10:A5:62:9A:BB:3E`
-- Identifiziert am 19. Marz beim Zerlegen des Displays (Kurzschluss-Vorfall)
+- Identifiziert am 19. März beim Zerlegen des Displays (Kurzschluss-Vorfall)
 
 **Interne Verdrahtung:** 5-adriges Kabel (schwarz=GND, rot=53V, blau=52V, gelb=unbekannt, grün=UART 19200 Baud)
 
-> Vollstandige Details: [`docs/HARDWARE.md`](docs/HARDWARE.md)
+> Vollständige Details: [`docs/HARDWARE.md`](docs/HARDWARE.md)
 
 ---
 
 ## OTA-Flasher
 
-Der OTA-Flasher implementiert das vollstandige DFU-Protokoll, das aus der offiziellen Navee-APK (`DFUProcessor.java`) ruckentwickelt wurde:
+Der OTA-Flasher implementiert das vollständige DFU-Protokoll, das aus der offiziellen Navee-APK (`DFUProcessor.java`) rückentwickelt wurde:
 
 ```
 Schritt 1: BLE-Verbindung + AES-128-ECB-Authentifizierung
@@ -236,7 +236,7 @@ Schritt 6: 1080 x 128-Byte-Blocke    -> SOH + Seq + ~Seq + Daten + CRC-16
 Schritt 7: EOT (0x04)                -> "rsq dfu_ok\r"
 ```
 
-**Ubertragungsergebnis:** 1080/1080 Blocke bestatigt, 0 Fehler, ca. 34 Sekunden. Mit Original-Firmware: wird korrekt installiert (2/2 verifiziert). Mit gepatchter Firmware vor dem SHA-256-Durchbruch: vom Bootloader abgelehnt (0/10). Mit `patch_firmware.py`-Ausgabe: SHA-256-Prufung besteht, Firmware wird installiert.
+**Übertragungsergebnis:** 1080/1080 Blöcke bestätigt, 0 Fehler, ca. 34 Sekunden. Mit Original-Firmware: wird korrekt installiert (2/2 verifiziert). Mit gepatchter Firmware vor dem SHA-256-Durchbruch: vom Bootloader abgelehnt (0/10). Mit `patch_firmware.py`-Ausgabe: SHA-256-Prüfung besteht, Firmware wird installiert.
 
 ---
 
@@ -332,7 +332,7 @@ python3 rtltool.py -p /dev/cu.usbserial-0001 -b 115200 \
 
 ## Rechtlicher Hinweis
 
-Die Modifikation der Geschwindigkeitsbegrenzung eines E-Scooters kann die Allgemeine Betriebserlaubnis (ABE) und den Versicherungsschutz erloschenassen. Der Betrieb eines modifizierten E-Scooters auf offentlichen Strassen kann in Ihrer Rechtsordnung rechtswidrig sein. Dieses Projekt dient ausschliesslich Forschungs- und Protokolldokumentationszwecken. Benutzung auf eigene Gefahr und nur auf Privatgelande.
+Die Modifikation der Geschwindigkeitsbegrenzung eines E-Scooters kann die Allgemeine Betriebserlaubnis (ABE) und den Versicherungsschutz erlöschen lassen. Der Betrieb eines modifizierten E-Scooters auf öffentlichen Straßen kann in Ihrer Rechtsordnung rechtswidrig sein. Dieses Projekt dient ausschließlich Forschungs- und Protokolldokumentationszwecken. Benutzung auf eigene Gefahr und nur auf Privatgelände.
 
 ---
 

@@ -1,3 +1,5 @@
+[English](PROTOCOL.md) | [Deutsch](PROTOCOL.md)
+
 # BLE-Protokoll Dokumentation — Navee ST3 Pro
 
 Vollständige Referenz des proprietären BLE-Kommunikationsprotokolls des Navee ST3 Pro E-Scooters. Basierend auf APK-Dekompilierung (jadx), BT-HCI-Captures und Live-Tests.

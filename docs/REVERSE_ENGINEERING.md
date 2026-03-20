@@ -1,3 +1,5 @@
+[English](REVERSE_ENGINEERING.md) | [Deutsch](REVERSE_ENGINEERING_DE.md)
+
 # Reverse Engineering — Navee ST3 Pro
 
 Dokumentation des Reverse-Engineering-Prozesses und der Erkenntnisse zum Navee ST3 Pro E-Scooter.
@@ -335,9 +337,21 @@ Die offizielle APK (DFUProcessor.java) verwendet eine strikte State Machine die 
 | 6 | PATCHED + CRC-16 BE am Ende | 1080/1080 ✅ | ❌ | ❌ |
 | 7 | PATCHED + CRC-16 LE am Ende | 1080/1080 ✅ | ❌ | ❌ |
 
-**Schlussfolgerung: Bootloader-Integritätsprüfung via SHA-256**
+**Durchbruch: SHA-256 Algorithmus gefunden und verifiziert**
 
-Der RTL8762C Bootloader verifiziert OTA-Images über einen **SHA-256 Hash** der im 1024-Byte Image Header bei Offset 0x174 gespeichert ist. Der exakte Berechnungsbereich konnte bisher nicht reproduziert werden — die Verifikationsfunktion liegt im **Mask-ROM** des RTL8762C (nicht im Flash, nicht auslesbar).
+Der RTL8762C Bootloader verifiziert OTA-Images über einen **SHA-256 Hash** der im 1024-Byte Image Header bei Offset 0x174 gespeichert ist. Der exakte Berechnungsbereich wurde im **Realtek Bee2 SDK** gefunden (GitHub: `simonchen007/Bee2_SDK_Mesh_v0.9.5.4`, Datei `src/flash/silent_dfu_flash.c`, Funktion `slient_dfu_check_sha256()`).
+
+**SHA-256 wird über exakt drei Regionen berechnet:**
+
+| Region | Bereich | Größe |
+|--------|---------|-------|
+| 1 | Header[0x00C:0x174] (Bytes 12–372) | 360 Bytes |
+| 2 | Header[0x194:0x2F0] (Bytes 404–752) | 348 Bytes |
+| 3 | Header[0x3F0:0x400] + Payload (Bytes 1008–1024 + Payload) | 16 + payload_len Bytes |
+
+Das SHA-256-Feld selbst (Header[0x174:0x194], Bytes 372–404) ist **explizit ausgeschlossen**.
+
+**Verifiziert:** Der berechnete SHA-256 stimmt mit dem gespeicherten Hash in der Original-Firmware überein. Eine gepatchte OTA-Firmware mit korrektem SHA-256 wurde erstellt und verifiziert (`patch_firmware.py` automatisiert den gesamten Prozess). Noch nicht am Board getestet, da das Dashboard beschädigt ist.
 
 **RTL8762C Image Header Format (1024 Bytes = 0x400):**
 
@@ -365,7 +379,7 @@ Quelle: Realtek Bee2 SDK (`patch_header_check.h`, `silent_dfu_flash.c`)
 - Bit 8: `not_obsolete`
 - Bit 9: `integrity_check_en_in_boot`
 
-**Durchgeführte Checksummen-Analyse (alle KEIN Match):**
+**Frühere Checksummen-Analyse (alle ohne Match, vor SDK-Fund):**
 - SHA-256 über diverse Payload-Bereiche (Header+Payload, nur Payload, verschiedene Offsets)
 - CRC-16 Brute-Force über 65536 Init-Werte × 8 Polynome × 4 Konfigurationen
 - CRC-16/XMODEM, CRC-16/CCITT, CRC-16/ARC, CRC-16/MODBUS (alle Varianten)
@@ -399,9 +413,9 @@ Quelle: Realtek Bee2 SDK (`patch_header_check.h`, `silent_dfu_flash.c`)
 | 0x44000 | 0x844000 | OTA Staging Bank B (empfangene FW) |
 | 0x76000 | 0x876000 | Additional Config |
 
-**Kritische Erkenntnis:** Die OTA-Firmware wird **UNVERSCHLÜSSELT** im Flash gespeichert (99.99% Byte-Match zwischen OTA-Staging und aktivem Flash, einzige Differenz = unser Patch). Die Verifikation findet VOR dem Kopieren von Bank B nach Bank A statt.
+**Kritische Erkenntnis:** Die OTA-Firmware wird **UNVERSCHLÜSSELT** im Flash gespeichert (99.99% Byte-Match zwischen OTA-Staging und aktivem Flash, einzige Differenz = unser 2-Byte-Patch). Die Verifikation findet VOR dem Kopieren von Bank B nach Bank A statt.
 
-**OTA-Patching bleibt blockiert** — der SHA-256 Berechnungsbereich im ROM ist unbekannt. **Direkter Flash-Patch via rtltool funktioniert** und umgeht die Verifikation komplett.
+**OTA-Patching ist jetzt möglich** — `patch_firmware.py` berechnet den SHA-256 korrekt und erstellt ein valides gepatchtes OTA-Image. Noch nicht am Board getestet (Dashboard beschädigt). **Direkter Flash-Patch via rtltool funktioniert** ebenfalls und umgeht die OTA-Verifikation komplett.
 
 **Key Exchange — Lösung gefunden (18. März 2026):**
 
@@ -433,6 +447,25 @@ XOR mit Key 1 → Decrypted bytes
 ble_key Response: "ok\r" ← ERFOLG!
 XMODEM Ready: 0x43 0x43 ← BEREIT FÜR TRANSFER!
 ```
+
+#### Flash-Dump Durchbruch (20. März 2026)
+
+Der vollständige SPI Flash (512 KB) wurde erfolgreich ausgelesen.
+
+**Hardware-Setup:**
+- **rtltool** (Fork von wuwbobo2021 mit `firmware0.bin` Support)
+- **Arduino UNO** als 3.3V-Stromversorgung für das Board
+- **CP2102 USB-UART-Adapter** für die serielle Verbindung
+- **P0_3 auf GND jumpen** beim Boot aktiviert den UART Download-Modus
+
+**Ergebnisse:**
+- 512 KB SPI Flash vollständig ausgelesen
+- Aktive Firmware (Bank A) liegt bei Flash-Offset **0x0E020** — der OTA Header beginnt bei 0x0E000, der Payload-Code bei 0x0E020
+- Patch-Stelle verifiziert bei **Dump-Offset 0x1D448**: `02 D9` = `bls`-Instruktion (Original)
+- Patch geschrieben: `02 D9` → `00 BF` (`NOP`) und Rückschreiben verifiziert
+
+**Schlüsselerkenntnis — OTA ist unverschlüsselt:**
+Der Vergleich zwischen dem OTA-Staging-Bereich (Bank B) und dem aktiven Flash (Bank A) zeigt **99.99% Byte-Übereinstimmung**. Die einzigen 2 abweichenden Bytes sind der geschriebene Patch. Das bedeutet: Die OTA-Firmware-Datei entspricht 1:1 dem aktiven Flash-Inhalt — keine Verschlüsselung, keine Transformation.
 
 #### Dashboard-Chip identifiziert: Realtek RTL8762C (19. März 2026)
 
@@ -466,23 +499,24 @@ Das Dashboard-Gehäuse wurde geöffnet (verklebt + Niete). Der Chip ist:
 
 Beim Versuch die Platine aus dem geöffneten Dashboard zu lösen (Scooter war AN) gab es einen Kurzschluss. Dashboard vermutlich beschädigt. Power-Button reagierte nicht mehr, Akku wurde manuell über Wago-Klemmen getrennt.
 
-**Status:** Dashboard muss ersetzt werden. Das defekte Board kann als Entwicklungsboard für Flash-Dump-Experimente mit rtltool verwendet werden.
+**Status:** Dashboard muss ersetzt werden. Das defekte Board wurde als Entwicklungsboard verwendet — Flash-Dump (512 KB) mit rtltool am 20. März 2026 erfolgreich durchgeführt.
 
-#### Nächster Schritt: SPI Flash Direct via rtltool
+#### Nächster Schritt: OTA mit korrektem SHA-256
 
-OTA-Patching ist durch den Bootloader-Integritätsschutz blockiert. Der einzige verbleibende Weg ist **direktes Flashen des SPI Flash über den UART Download-Modus** des RTL8762C.
+Der Flash-Direktpatch via rtltool war erfolgreich. Der nächste logische Schritt ist **OTA-Patching mit korrekt berechnetem SHA-256**, sobald ein funktionsfähiges Board verfügbar ist. `patch_firmware.py` automatisiert den gesamten Prozess: Patch anwenden, SHA-256 über die drei SDK-definierten Regionen berechnen, ins OTA-Image schreiben und via BLE XMODEM übertragen.
 
-Vollständige Anleitung: [`docs/SWD_FLASH_GUIDE.md`](SWD_FLASH_GUIDE.md)
+Vollständige Anleitung zum Flash-Direktzugriff: [`docs/SWD_FLASH_GUIDE.md`](SWD_FLASH_GUIDE.md)
 
 #### Architektur-Erkenntnis
 
 - Das Speed-Limit wird in der **Meter-Firmware** (RTL8762C Dashboard) berechnet
 - Der Wert wird über UART Frame A an den Motor-Controller gesendet
 - Die Speed-Lookup-Funktion (FUN_0800ad02) nutzt den Area-Code für länderspezifische Limits
-- Alle bisherigen Ansätze (BLE CMD, UART MitM, FW-Patch via OTA) konnten das Limit nicht ändern
+- BLE CMD (Ansatz 1) und UART MitM (Ansatz 2) konnten das Limit nicht ändern
 - Der BLDC Motor-Controller scheint KEIN eigenes Speed-Limit zu haben (basierend auf der UART-Analyse)
-- **Das Limit ist definitiv in der Meter-Firmware** — der Patch ist verifiziert, aber OTA-Installation durch Bootloader-Checksumme blockiert
-- **Nächster Schritt: SPI Flash Direct Programming** via rtltool — umgeht den Bootloader komplett
+- **Das Limit ist definitiv in der Meter-Firmware** — der 1-Byte-Patch ist verifiziert
+- **Flash-Direktpatch via rtltool erfolgreich** (20. März 2026) — Patch bei Offset 0x1D448 geschrieben und verifiziert
+- **OTA-Patching möglich** — SHA-256 Algorithmus aus Bee2 SDK gefunden, `patch_firmware.py` erstellt valide gepatchte OTA-Images; Board-Test steht noch aus
 
 ---
 

@@ -1,5 +1,7 @@
 # Hardware — Navee ST3 Pro
 
+[English](HARDWARE.md) | [Deutsch](HARDWARE_DE.md)
+
 Complete hardware reference for the Navee ST3 Pro e-scooter dashboard unit, internal wiring, motor controller interface, and debug access.
 
 ---
@@ -44,6 +46,7 @@ The dashboard is the primary control interface and the unit that communicates wi
 | CPU core | ARM Cortex-M4F, 40 MHz |
 | Module | RB8762-35A1 (Navee custom module) |
 | Serial number | 251210A5629ABB3E |
+| MAC address | 10:A5:62:9A:BB:3E (read via `rtltool read_mac`) |
 | FCC ID | 2A4GZ-RB87623SAI |
 | IC | 28570-RB876235AI |
 | Flash | External SPI Flash, 512 KB minimum, memory-mapped at `0x00800000` |
@@ -127,13 +130,24 @@ The RTL8762C supports a UART-based download mode that allows reading and writing
 | Logic level | **3.3 V — do NOT use a 5 V UART adapter** |
 | Required hardware | USB-UART adapter (3.3 V), access to P0_3 pad on PCB, GND |
 
-### How to enter download mode
+### Verified download mode procedure
 
-1. Open the dashboard enclosure and locate the UART pads and the P0_3 test pad on the PCB.
-2. Connect your USB-UART adapter: TX to RX pad, RX to TX pad (green wire), GND to GND.
-3. Bridge P0_3 to GND with a jumper wire — keep this connection in place during power-on.
-4. Power the scooter on. The RTL8762C boots into download mode instead of normal firmware.
-5. After the download session is complete, remove the P0_3 jumper and reboot normally.
+The following setup was confirmed to work during the successful 512 KB flash dump:
+
+- **Power supply:** Arduino board providing regulated 3.3V to the dashboard PCB (scooter battery fully disconnected). Do not attempt this with battery connected.
+- **USB-UART adapter:** CP2102-based adapter at 3.3V logic level. Do not use a 5V adapter.
+- **P0_3 activation:** Jumper wire from P0_3 pad to GND, held in place before and during power-on.
+
+**Step-by-step:**
+
+1. Disconnect the scooter battery completely.
+2. Open the dashboard enclosure and locate the UART TX/RX pads, GND, and P0_3 test pad on the PCB.
+3. Connect the CP2102 adapter: TX to RX pad, RX to TX pad, GND to GND.
+4. Connect the Arduino 3.3V and GND pins to the dashboard 3.3V and GND pads.
+5. Bridge P0_3 to GND with a jumper wire.
+6. Apply power (connect Arduino USB). The RTL8762C boots into download mode.
+7. Run `rtltool` commands (read flash, write flash, read MAC, etc.).
+8. After the session, remove the P0_3 jumper and reboot to return to normal firmware.
 
 For the complete step-by-step flash procedure including backup, patch application, and verification, see [SWD_FLASH_GUIDE.md](SWD_FLASH_GUIDE.md).
 
@@ -141,18 +155,28 @@ For the complete step-by-step flash procedure including backup, patch applicatio
 
 ## Flash Memory Layout
 
-The RTL8762C uses an external SPI flash chip, memory-mapped starting at `0x00800000`. The layout below is reconstructed from firmware analysis and flash dumps. Actual offsets may vary slightly between units.
+The RTL8762C uses an external SPI flash chip, memory-mapped starting at `0x00800000`. The layout below is the verified layout from the actual 512 KB flash dump obtained via rtltool.
+
+### Dual-Bank Architecture
+
+The flash uses a dual-bank (A/B) layout for safe OTA updates. Bank A holds the currently running application firmware. Bank B (OTA staging area) holds the incoming firmware during an OTA transfer. After a successful integrity check the bootloader swaps to Bank B and Bank A becomes the next staging area. The bootloader and BLE stack patches occupy the lower address range and are not touched by OTA updates.
+
+### Verified Layout
 
 | Address Range | Size | Content |
 |--------------|------|---------|
-| `0x00800000` – `0x0081FFFF` | 128 KB | Bootloader and BLE stack |
-| `0x00820000` – `0x00841BFF` | ~135 KB | Application firmware (meter firmware — the patch target) |
-| `0x0080E000` – `0x0080E3FF` | 1 KB | FTL (Flash Translation Layer) |
-| `0x0080E400` – `0x0080EFFF` | 3 KB | Configuration data |
+| `0x00800000` | — | Reserved (0xFF) |
+| `0x00801000` – `0x00802FFF` | 8 KB | System config, boot parameters |
+| `0x00803000` – `0x00803FFF` | 4 KB | Patch image header (BLE stack) |
+| `0x00804000` – `0x0080DFFF` | 40 KB | Patch code (BLE stack, active) |
+| `0x0080E000` – `0x0082FFFF` | 136 KB | App firmware — Bank A (active). Patch target at `0x0081D448` |
+| `0x00840000` – `0x00841FFF` | 8 KB | OTA header area |
+| `0x00844000` – `0x00865FFF` | 136 KB | OTA staging — Bank B |
+| `0x00876000` | — | Additional config |
 
-The application firmware region (`0x00820000`) is where the speed limit logic lives. The critical patch point identified by Ghidra analysis is at file offset `0xF848` within the firmware binary (absolute flash address depends on where the firmware starts in the dump — use the `T2202` header string to locate it). See [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md#der-patch-1-byte) for the exact 1-byte patch details.
+The speed limit patch point is at absolute flash address `0x0081D448` (Bank A). This was confirmed by locating the `T2202` firmware header in the dump and computing the offset of the `02 D9` branch instruction identified in Ghidra analysis. See [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md#der-patch-1-byte) for the exact 1-byte patch details.
 
-The bootloader region contains the integrity check that rejects modified OTA binaries. This region is read-only during normal OTA updates. Writing directly via download mode bypasses the bootloader and can modify the application firmware region without triggering the check.
+The bootloader verifies Bank B with SHA-256 before swapping. Writing directly via download mode (rtltool) targets Bank A and bypasses this check entirely.
 
 ---
 

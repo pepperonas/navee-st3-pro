@@ -1,3 +1,5 @@
+[English](AUTHENTICATION.md) | [Deutsch](AUTHENTICATION.md)
+
 # Authentifizierung — Navee ST3 Pro
 
 Dokumentation des BLE-Authentifizierungsablaufs für den Navee ST3 Pro E-Scooter.

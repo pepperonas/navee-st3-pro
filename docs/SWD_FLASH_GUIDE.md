@@ -1,12 +1,16 @@
+[English](SWD_FLASH_GUIDE.md) | [Deutsch](SWD_FLASH_GUIDE.md)
+
 # Direct Flash — Navee ST3 Pro (RTL8762C)
 
-Anleitung zum direkten Flashen der Meter-Firmware über UART Download-Modus.
+Anleitung zum direkten Flashen der Meter-Firmware über den UART Download-Modus des RTL8762C.
 
 **MCU:** Realtek RTL8762C BLE SoC (Modul: RB8762-35A1)
-**Flash:** Externer SPI Flash, Memory-Mapped ab 0x00800000
-**Tool:** [rtltool](https://github.com/cyber-murmel/rtltool) (Python, Open Source)
+**Flash:** Externer SPI Flash, 512 KB, Memory-Mapped ab 0x00800000
+**Tool:** [rtltool](https://github.com/wuwbobo2021/rtltool) (Python, Open Source, inkl. firmware0.bin)
 
-**Warum direkt flashen?** Der OTA-Bootloader hat eine Integritätsprüfung die jede modifizierte Firmware ablehnt (verifiziert mit 10 verschiedenen Binaries inkl. XOR/SUM/CRC-Ausgleich, davon 2× Original erfolgreich). Die Prüfung ist kryptographisch oder proprietär und kann nicht über OTA umgangen werden.
+**Hinweis:** Seit dem 20. März 2026 ist auch **OTA-Patching** möglich — der SHA-256 Algorithmus wurde geknackt. Siehe `patch_firmware.py` im tools/ Ordner. Direct Flash ist die Alternative wenn kein BLE-Zugang besteht oder das Dashboard vom Scooter getrennt ist.
+
+**Verifiziert:** Am 20. März 2026 wurde der komplette 512 KB Flash erfolgreich gedumpt, der 2-Byte Speed-Patch geschrieben und verifiziert. Hardware: Arduino UNO (3.3V Stromversorgung) + CP2102 USB-UART Adapter.
 
 ---
 
@@ -82,17 +86,15 @@ GND ──── Jumper ──────→   P0_3 (Download-Mode Pin)
 ### rtltool installieren
 
 ```bash
-# Repository klonen
-git clone https://github.com/cyber-murmel/rtltool.git
+# Repository klonen (Fork mit firmware0.bin inklusive — kein Realtek-Account nötig!)
+git clone https://github.com/wuwbobo2021/rtltool.git
 cd rtltool
 
 # Dependencies
 pip3 install pyserial crccheck coloredlogs
 
-# Realtek MP Tool herunterladen (enthält firmware0.bin für Handshake)
-# Von: https://www.realmcu.com/en/Home/Product/93cc0582-3a3f-4ea8-82ea-76c6504e478a
-# ZIP in rtl8762c/ Verzeichnis legen
-# Kompatible Versionen: v1.0.5.8 oder v1.0.6.2
+# Verifizieren dass firmware0.bin vorhanden ist
+ls rtl8762c/firmware0.bin
 ```
 
 ### Verbindung testen
@@ -279,8 +281,28 @@ Nach dem direkten Patch funktioniert OTA weiterhin — der Bootloader ist unver�
 
 ---
 
+## Verifiziertes Flash-Layout (aus 512 KB Dump)
+
+```
+SPI Flash (512 KB, Memory-Mapped ab 0x00800000)
++---------------------+----------------------------------------------+
+| 0x800000            | Reserved (0xFF)                              |
+| 0x801000-0x802FFF   | System Config, Boot-Parameter                |
+| 0x803000-0x803FFF   | Patch Image Header (BLE Stack)               |
+| 0x804000-0x80DFFF   | Patch Code (BLE Stack, aktiv)                |
+| 0x80E000-0x82FFFF   | App Firmware (aktiv, Bank A)                 |
+|   0x81D448          |   *** PATCH: 02 D9 -> 00 BF ***              |
+| 0x840000-0x841FFF   | OTA Header Area                              |
+| 0x844000-0x865FFF   | OTA Staging (Bank B, empfangene FW)           |
+| 0x876000            | Additional Config                            |
++---------------------+----------------------------------------------+
+```
+
+---
+
 ## Referenzen
 
-- [rtltool](https://github.com/cyber-murmel/rtltool) — RTL8762C Flash-Tool
-- [RTL8762C Datenblatt](https://www.realmcu.com/en/Home/Product/93cc0582-3a3f-4ea8-82ea-76c6504e478a) — Realtek
-- [Realtek BeeBee2 SDK](https://github.com/nicka101/RTL8762C-SDK-GCC) — Inoffizielle SDK-Portierung
+- [rtltool (wuwbobo2021 Fork)](https://github.com/wuwbobo2021/rtltool) — RTL8762C Flash-Tool (inkl. firmware0.bin)
+- [rtltool (Original)](https://github.com/cyber-murmel/rtltool) — Originales Repository
+- [Realtek Bee2 SDK](https://github.com/simonchen007/Bee2_SDK_Mesh_v0.9.5.4) — SDK Source (SHA-256 Algorithmus)
+- [RTL8762C Produktseite](https://www.realmcu.com/en/Home/Product/93cc0582-3a3f-4ea8-82ea-76c6504e478a) — Realtek

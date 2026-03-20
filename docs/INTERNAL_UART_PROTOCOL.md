@@ -1,3 +1,5 @@
+[English](INTERNAL_UART_PROTOCOL.md) | [Deutsch](INTERNAL_UART_PROTOCOL.md)
+
 # Internal UART Protocol — Dashboard ↔ Controller
 
 Documentation of the internal UART communication protocol between the Navee ST3 Pro dashboard (RTL8762C) and the motor controller.

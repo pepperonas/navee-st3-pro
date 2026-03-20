@@ -146,7 +146,7 @@ Alle verifiziert gegen die offizielle Navee APK (DeviceAfterFragment.java, Devic
 | 20 | Byte 19 | Startup Speed | `0x00`-`0x05` | APK |
 | 21 | Byte 20 | Speed Limit | Bit7=aktiv, Bits0-6=km/h | APK |
 | 22-25 | Byte 21-24 | Volume, Lang, Logo, DayRun | Werte | APK |
-| 26 | Byte 25 | **Max Speed** | z.B. `0x16`=22 km/h | Live: Firmware-Cap, nicht aenderbar |
+| 26 | Byte 25 | **Max Speed** | z.B. `0x16`=22 km/h | Live: Firmware-Cap, nicht änderbar |
 | 27 | Byte 26 | Drive Mode 2 | Wert | APK |
 | 28-37 | Byte 27-36 | Charge, Lock, Weather etc. | Werte | APK |
 

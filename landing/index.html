@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlashMonkey — Navee ST3 Pro Speed Unlock</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0A0A0F;--bg2:#12121A;--bg3:#1A1A28;--accent:#00D4FF;--green:#00FF88;--text:#E8E8F0;--dim:#888899;--card:#15152200;--border:#2A2A3A}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none;transition:color .2s}
+a:hover{color:var(--green)}
+
+/* Grid background */
+.grid-bg{position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+
+/* Container */
+.container{max-width:1100px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
+
+/* NAV */
+nav{position:fixed;top:0;width:100%;padding:16px 0;z-index:100;backdrop-filter:blur(20px);background:rgba(10,10,15,.85);border-bottom:1px solid var(--border)}
+nav .container{display:flex;justify-content:space-between;align-items:center}
+.nav-logo{font-size:1.3rem;font-weight:800;letter-spacing:-0.5px}
+.nav-logo span{color:var(--accent)}
+nav ul{list-style:none;display:flex;gap:24px}
+nav ul a{color:var(--dim);font-size:.9rem;font-weight:500}
+nav ul a:hover{color:var(--text)}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;padding-top:80px}
+.hero-content{text-align:center;width:100%}
+.hero-monkey{font-size:4rem;margin-bottom:16px;filter:drop-shadow(0 0 40px rgba(0,212,255,.3))}
+.hero h1{font-size:clamp(3rem,8vw,5.5rem);font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,#fff 0%,var(--accent) 50%,var(--green) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px}
+.hero-sub{font-size:clamp(1.1rem,2.5vw,1.4rem);color:var(--dim);max-width:600px;margin:0 auto 40px}
+.hero-sub strong{color:var(--text)}
+
+/* Speed counter */
+.speed-display{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:48px}
+.speed-num{font-size:clamp(4rem,12vw,8rem);font-weight:900;font-variant-numeric:tabular-nums;color:var(--green);text-shadow:0 0 60px rgba(0,255,136,.3)}
+.speed-unit{font-size:1.2rem;color:var(--dim);text-align:left}
+.speed-label{font-size:.8rem;color:var(--accent);text-transform:uppercase;letter-spacing:2px}
+@keyframes countUp{0%{content:"22"}10%{content:"24"}20%{content:"26"}30%{content:"28"}40%{content:"30"}50%{content:"32"}60%{content:"33"}70%{content:"34"}80%{content:"35"}100%{content:"35"}}
+.speed-counter::after{content:"22";animation:countUp 2s ease-out 1s forwards}
+
+/* CTA */
+.cta{display:inline-block;padding:16px 48px;background:linear-gradient(135deg,var(--accent),#0088CC);color:#fff;font-size:1.1rem;font-weight:700;border-radius:50px;border:none;cursor:pointer;transition:all .3s;box-shadow:0 4px 30px rgba(0,212,255,.3)}
+.cta:hover{transform:translateY(-2px);box-shadow:0 8px 40px rgba(0,212,255,.5);color:#fff}
+.cta-sub{display:block;margin-top:12px;font-size:.85rem;color:var(--dim)}
+
+/* SECTIONS */
+section{padding:100px 0}
+.section-title{font-size:2.2rem;font-weight:800;text-align:center;margin-bottom:12px;letter-spacing:-1px}
+.section-sub{text-align:center;color:var(--dim);margin-bottom:60px;font-size:1.05rem}
+
+/* HOW IT WORKS */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
+.step{text-align:center;padding:40px 24px;border-radius:16px;border:1px solid var(--border);background:var(--bg2);transition:border-color .3s}
+.step:hover{border-color:var(--accent)}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--green));color:var(--bg);font-size:1.4rem;font-weight:900;margin-bottom:20px}
+.step h3{font-size:1.2rem;margin-bottom:8px}
+.step p{color:var(--dim);font-size:.95rem}
+.steps-note{text-align:center;margin-top:32px;color:var(--green);font-weight:600;font-size:.95rem}
+
+/* FEATURES */
+.features{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.feature{padding:32px;border-radius:16px;border:1px solid var(--border);background:var(--bg2);transition:all .3s}
+.feature:hover{border-color:var(--accent);transform:translateY(-4px)}
+.feature-icon{font-size:2rem;margin-bottom:12px}
+.feature h3{font-size:1.05rem;margin-bottom:8px}
+.feature p{color:var(--dim);font-size:.9rem}
+
+/* TECH */
+.tech{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:40px;max-width:700px;margin:0 auto;font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:.85rem}
+.tech-line{color:var(--dim);padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.tech-line span{color:var(--green)}
+.tech-line::before{content:"$ ";color:var(--accent)}
+
+/* PRICING */
+.pricing-card{max-width:440px;margin:0 auto;padding:48px;border-radius:20px;border:2px solid var(--accent);background:var(--bg2);text-align:center;position:relative;overflow:hidden}
+.pricing-card::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--accent),var(--green))}
+.price{font-size:3.5rem;font-weight:900;margin:16px 0 8px}
+.price span{font-size:1.2rem;color:var(--dim);font-weight:400}
+.pricing-features{list-style:none;text-align:left;margin:24px 0}
+.pricing-features li{padding:8px 0;color:var(--dim);border-bottom:1px solid rgba(255,255,255,.04)}
+.pricing-features li::before{content:"+ ";color:var(--green);font-weight:700}
+.pricing-note{font-size:.8rem;color:var(--dim);margin-top:16px}
+
+/* SCOOTERS */
+.scooter-list{max-width:500px;margin:0 auto;text-align:center}
+.scooter-item{padding:16px 24px;border:1px solid var(--border);border-radius:12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.scooter-item .model{font-weight:700}
+.scooter-item .status{font-size:.8rem;padding:4px 12px;border-radius:20px;background:rgba(0,255,136,.1);color:var(--green)}
+.scooter-item .soon{background:rgba(255,170,0,.1);color:#FFAA00}
+
+/* FAQ */
+.faq{max-width:700px;margin:0 auto}
+details{border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;transition:border-color .3s}
+details[open]{border-color:var(--accent)}
+summary{padding:20px 24px;cursor:pointer;font-weight:600;font-size:1rem;list-style:none;display:flex;justify-content:space-between;align-items:center;transition:background .2s}
+summary:hover{background:rgba(0,212,255,.05)}
+summary::after{content:"+";font-size:1.4rem;color:var(--accent);transition:transform .3s}
+details[open] summary::after{transform:rotate(45deg)}
+details p{padding:0 24px 20px;color:var(--dim);font-size:.95rem;line-height:1.7}
+
+/* FOOTER */
+footer{padding:60px 0;border-top:1px solid var(--border);text-align:center}
+footer .links{margin:16px 0;display:flex;justify-content:center;gap:24px}
+footer .legal{font-size:.75rem;color:var(--dim);margin-top:16px}
+
+/* MOBILE */
+@media(max-width:768px){
+.steps,.features{grid-template-columns:1fr}
+nav ul{display:none}
+.speed-display{flex-direction:column;gap:4px}
+}
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<nav>
+<div class="container">
+<div class="nav-logo">Flash<span>Monkey</span></div>
+<ul>
+<li><a href="#how">How It Works</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#pricing">Pricing</a></li>
+<li><a href="#faq">FAQ</a></li>
+</ul>
+</div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+<div class="container">
+<div class="hero-content">
+<div class="hero-monkey">&#x1F412;</div>
+<h1>FlashMonkey</h1>
+<p class="hero-sub">Unlock your <strong>Navee ST3 Pro</strong> in 30 seconds.<br>No cables. No tools. Just Bluetooth.</p>
+<div class="speed-display">
+<div>
+<div class="speed-label">Top Speed</div>
+<div class="speed-num"><span class="speed-counter"></span></div>
+</div>
+<div class="speed-unit">km/h</div>
+</div>
+<a href="#pricing" class="cta">Unlock Now &mdash; 39 EUR</a>
+<span class="cta-sub">One-time payment. Lifetime license.</span>
+</div>
+</div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+<div class="container">
+<h2 class="section-title">How It Works</h2>
+<p class="section-sub">Three steps. Thirty seconds. No screwdriver needed.</p>
+<div class="steps">
+<div class="step">
+<div class="step-num">1</div>
+<h3>Download</h3>
+<p>Get FlashMonkey for macOS, Windows, Android, or iOS.</p>
+</div>
+<div class="step">
+<div class="step-num">2</div>
+<h3>Connect</h3>
+<p>Turn on your scooter. FlashMonkey finds it via Bluetooth automatically.</p>
+</div>
+<div class="step">
+<div class="step-num">3</div>
+<h3>Unlock</h3>
+<p>Enter your license key. Firmware patches wirelessly in 30 seconds.</p>
+</div>
+</div>
+<p class="steps-note">Works wirelessly. No opening the scooter. No soldering. One click.</p>
+</div>
+</section>
+
+<!-- FEATURES -->
+<section id="features" style="background:var(--bg2)">
+<div class="container">
+<h2 class="section-title">Features</h2>
+<p class="section-sub">Everything you need. Nothing you don't.</p>
+<div class="features">
+<div class="feature">
+<div class="feature-icon">&#x26A1;</div>
+<h3>Speed Unlock</h3>
+<p>Remove the 22 km/h limit. Set any speed up to 35+ km/h with a slider.</p>
+</div>
+<div class="feature">
+<div class="feature-icon">&#x1F680;</div>
+<h3>Zero Start</h3>
+<p>Accelerate from standstill. No more awkward kick-starting.</p>
+</div>
+<div class="feature">
+<div class="feature-icon">&#x1F504;</div>
+<h3>Safe &amp; Reversible</h3>
+<p>Restore original firmware anytime with one click. Your scooter stays stable.</p>
+</div>
+<div class="feature">
+<div class="feature-icon">&#x1F4BB;</div>
+<h3>Cross-Platform</h3>
+<p>macOS, Windows, Android, iOS. Works on whatever you have.</p>
+</div>
+<div class="feature">
+<div class="feature-icon">&#x1F504;</div>
+<h3>Auto Re-Patch</h3>
+<p>Navee pushes an update? FlashMonkey re-patches automatically. Same key.</p>
+</div>
+<div class="feature">
+<div class="feature-icon">&#x1F512;</div>
+<h3>Verified Integrity</h3>
+<p>SHA-256 checksum recalculated. Your scooter's bootloader accepts it as genuine.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- TECH CREDIBILITY -->
+<section>
+<div class="container">
+<h2 class="section-title">Under the Hood</h2>
+<p class="section-sub">Built on real reverse engineering, not guesswork.</p>
+<div class="tech">
+<div class="tech-line"><span>4 days</span> of reverse engineering</div>
+<div class="tech-line"><span>48 BLE commands</span> decoded from Navee APK (AES-128-ECB auth)</div>
+<div class="tech-line"><span>RTL8762C</span> dashboard MCU identified and flash-dumped (512 KB)</div>
+<div class="tech-line"><span>SHA-256</span> OTA checksum cracked from Realtek Bee2 SDK source</div>
+<div class="tech-line"><span>1 byte</span> firmware patch: BLS (0x02D9) to NOP (0x00BF)</div>
+<div class="tech-line"><span>Dual-bank</span> flash architecture mapped (Bank A active, Bank B OTA staging)</div>
+<div class="tech-line"><span>10 failed</span> checksum attempts before the breakthrough</div>
+</div>
+</div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" style="background:var(--bg2)">
+<div class="container">
+<h2 class="section-title">Pricing</h2>
+<p class="section-sub">One scooter. One payment. Forever.</p>
+<div class="pricing-card">
+<h3>Full Unlock</h3>
+<div class="price">39 <span>EUR</span></div>
+<ul class="pricing-features">
+<li>Speed limit removed (set any speed via app)</li>
+<li>Zero start (accelerate from standstill)</li>
+<li>Lifetime firmware updates</li>
+<li>Auto re-patch after Navee OTA updates</li>
+<li>One-click rollback to stock</li>
+<li>14-day money-back guarantee</li>
+</ul>
+<a href="#" class="cta" style="width:100%;display:block;text-align:center">Get Your Key</a>
+<p class="pricing-note">Key is bound to your scooter's Bluetooth MAC address.</p>
+</div>
+</div>
+</section>
+
+<!-- SUPPORTED -->
+<section>
+<div class="container">
+<h2 class="section-title">Supported Scooters</h2>
+<p class="section-sub">Starting with the most popular model.</p>
+<div class="scooter-list">
+<div class="scooter-item">
+<span class="model">Navee ST3 Pro (DE/EU)</span>
+<span class="status">Supported</span>
+</div>
+<div class="scooter-item">
+<span class="model">Navee ST3</span>
+<span class="status soon">Coming Soon</span>
+</div>
+<div class="scooter-item">
+<span class="model">Navee ST5 Pro</span>
+<span class="status soon">Coming Soon</span>
+</div>
+</div>
+</div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="background:var(--bg2)">
+<div class="container">
+<h2 class="section-title">FAQ</h2>
+<p class="section-sub">The important questions.</p>
+<div class="faq">
+<details>
+<summary>Is this legal?</summary>
+<p>Modifying the speed limit voids the scooter's type approval (ABE) and insurance coverage. Operating a modified scooter on public roads may be illegal in your jurisdiction. FlashMonkey is intended for private property and research purposes only.</p>
+</details>
+<details>
+<summary>Can I go back to stock firmware?</summary>
+<p>Yes. FlashMonkey includes a one-click rollback that restores the original firmware. Your scooter will be exactly as it was before.</p>
+</details>
+<details>
+<summary>Will Navee firmware updates break it?</summary>
+<p>If Navee pushes a firmware update via their app, it will overwrite the patch. FlashMonkey re-patches automatically using the same license key. The patch engine finds the correct location in any firmware version using pattern matching.</p>
+</details>
+<details>
+<summary>Is my scooter safe?</summary>
+<p>The patch changes exactly 2 bytes of executable code (a conditional branch becomes a no-op). The SHA-256 integrity checksum is recalculated correctly, so the scooter's bootloader treats the firmware as genuine. The rest of the firmware is completely untouched.</p>
+</details>
+<details>
+<summary>What if it doesn't work?</summary>
+<p>14-day money-back guarantee. If FlashMonkey can't unlock your scooter for any reason, you get a full refund. No questions asked.</p>
+</details>
+<details>
+<summary>How does the license key work?</summary>
+<p>Your key is bound to your scooter's Bluetooth MAC address on first use. It works forever on that specific scooter, including re-patches after Navee updates. One key = one scooter.</p>
+</details>
+</div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+<div class="container">
+<div class="nav-logo" style="font-size:1.5rem;margin-bottom:8px">Flash<span>Monkey</span></div>
+<div class="links">
+<a href="https://celox.io">celox.io</a>
+<a href="https://github.com/pepperonas">GitHub</a>
+<a href="mailto:info@celox.io">Contact</a>
+</div>
+<p class="legal">For research and private property use only. Modifying e-scooter speed limits may void type approval and insurance.</p>
+<p class="legal">&copy; 2026 Martin Pfeffer | celox.io</p>
+</div>
+</footer>
+</body>
+</html>

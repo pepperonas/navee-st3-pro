@@ -8,22 +8,17 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-brightgreen.svg)](android/)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1-purple.svg)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Jetpack-Compose-4285F4.svg)]()
-[![BLE](https://img.shields.io/badge/BLE-Custom%20Protocol-informational.svg)](docs/PROTOCOL.md)
 [![MCU](https://img.shields.io/badge/MCU-RTL8762C-FF6F00.svg)](docs/HARDWARE.md)
-[![Firmware](https://img.shields.io/badge/Firmware-1--Byte%20Patch-00C853.svg)](docs/REVERSE_ENGINEERING.md#der-patch-1-byte)
-[![Flash](https://img.shields.io/badge/SPI%20Flash-Verified-00C853.svg)](#spi-flash-direktpatch)
+[![BLE](https://img.shields.io/badge/BLE-Custom%20Protocol-informational.svg)](docs/PROTOCOL.md)
 [![Auth](https://img.shields.io/badge/Auth-AES--128--ECB-9C27B0.svg)](docs/AUTHENTICATION.md)
 [![SHA256](https://img.shields.io/badge/SHA--256-Cracked-00C853.svg)](#patch_firmwarepy--automatischer-ota-patcher)
-[![OTA](https://img.shields.io/badge/OTA%20Patch-Ready-00C853.svg)](#patch_firmwarepy--automatischer-ota-patcher)
-[![SPI](https://img.shields.io/badge/SPI%20Flash-Verified-00C853.svg)](#spi-flash-direktpatch)
-[![RTL](https://img.shields.io/badge/MCU-RTL8762C-FF6F00.svg)](docs/HARDWARE.md)
-[![Speed](https://img.shields.io/badge/Speed%20Unlock-Working-00C853.svg)](#der-patch)
+[![SPI Flash](https://img.shields.io/badge/SPI%20Flash-Patch%20Verified-00C853.svg)](#spi-flash-direktpatch)
+[![OTA](https://img.shields.io/badge/OTA%20Patch-Untested-FFA726.svg)](#patch_firmwarepy--automatischer-ota-patcher)
+[![Speed](https://img.shields.io/badge/Speed%20Unlock-Awaiting%20Test-FFA726.svg)](#der-patch)
 
 ---
 
-Reverse Engineering, Firmware-Analyse und Android-Controller-App fur den **Navee ST3 Pro** E-Scooter (PID 23452, DE-Markt).
+Reverse Engineering, Firmware-Analyse und Android-Controller-App für den **Navee ST3 Pro** E-Scooter (PID 23452, DE-Markt).
 
 Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine unabhängige Controller-App entwickelt, die Tacho-Firmware mit Ghidra analysiert, einen funktionierenden OTA-Flasher gebaut, den kompletten SPI-Flash per UART ausgelesen, **einen 1-Byte-Firmware-Patch direkt in den Flash geschrieben** mit [rtltool](https://github.com/wuwbobo2021/rtltool), den **RTL8762C-SHA-256-Algorithmus geknackt** und `patch_firmware.py` erstellt — ein vollautomatisches Werkzeug, das jede Firmware-Version patcht und ein gültig signiertes OTA-Binary erzeugt.
 
@@ -36,9 +31,11 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | 1 | BLE CMD `0x6E` (Max Speed) | Fehlgeschlagen — ACK erhalten, von Firmware ignoriert |
 | 2 | UART MitM (Arduino) | Fehlgeschlagen — Controller ignoriert manipulierte Frames |
 | 3 | **Firmware-Patch (Ghidra)** | **Bestätigt — 1-Byte-NOP aktiviert benutzerdefinierten Geschwindigkeitsmodus** |
-| 4 | OTA-Flash (BLE XMODEM) | Fehlgeschlagen — Übertragung OK, Bootloader verwarf alle 10 Patch-Versuche |
+| 4 | OTA-Flash (BLE XMODEM) | SHA-256 geknackt, OTA-Binary erstellt — **wartet auf Test am funktionierenden Scooter** |
 | 5 | **SPI-Flash direkt (rtltool)** | **Bestätigt — Patch geschrieben und per Read-Back verifiziert** |
 | 6 | Controller-Tausch (AliExpress) | Von der Community bestätigt |
+
+**Aktueller Status:** Ersatz-Dashboard bestellt. OTA-Patch und Testfahrt stehen aus.
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

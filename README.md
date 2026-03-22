@@ -8,18 +8,13 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android-brightgreen.svg)](android/)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1-purple.svg)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Jetpack-Compose-4285F4.svg)]()
-[![BLE](https://img.shields.io/badge/BLE-Custom%20Protocol-informational.svg)](docs/PROTOCOL.md)
 [![MCU](https://img.shields.io/badge/MCU-RTL8762C-FF6F00.svg)](docs/HARDWARE.md)
-[![Firmware](https://img.shields.io/badge/Firmware-1--Byte%20Patch-00C853.svg)](docs/REVERSE_ENGINEERING.md#der-patch-1-byte)
-[![Flash](https://img.shields.io/badge/SPI%20Flash-Verified-00C853.svg)](#spi-flash-direct-patch)
+[![BLE](https://img.shields.io/badge/BLE-Custom%20Protocol-informational.svg)](docs/PROTOCOL.md)
 [![Auth](https://img.shields.io/badge/Auth-AES--128--ECB-9C27B0.svg)](docs/AUTHENTICATION.md)
 [![SHA256](https://img.shields.io/badge/SHA--256-Cracked-00C853.svg)](#patch_firmwarepy--automatic-ota-patcher)
-[![OTA](https://img.shields.io/badge/OTA%20Patch-Ready-00C853.svg)](#patch_firmwarepy--automatic-ota-patcher)
-[![SPI](https://img.shields.io/badge/SPI%20Flash-Verified-00C853.svg)](#spi-flash-direct-patch)
-[![RTL](https://img.shields.io/badge/MCU-RTL8762C-FF6F00.svg)](docs/HARDWARE.md)
-[![Speed](https://img.shields.io/badge/Speed%20Unlock-Working-00C853.svg)](#the-patch)
+[![SPI Flash](https://img.shields.io/badge/SPI%20Flash-Patch%20Verified-00C853.svg)](#spi-flash-direct-patch)
+[![OTA](https://img.shields.io/badge/OTA%20Patch-Untested-FFA726.svg)](#patch_firmwarepy--automatic-ota-patcher)
+[![Speed](https://img.shields.io/badge/Speed%20Unlock-Awaiting%20Test-FFA726.svg)](#the-patch)
 
 ---
 
@@ -36,9 +31,11 @@ This project has fully reverse-engineered the proprietary BLE protocol, develope
 | 1 | BLE CMD `0x6E` (Max Speed) | Failed — ACK'd but ignored by firmware |
 | 2 | UART MitM (Arduino) | Failed — Controller ignores manipulated frames |
 | 3 | **Firmware Patch (Ghidra)** | **Verified — 1-byte NOP enables custom speed mode** |
-| 4 | OTA Flash (BLE XMODEM) | Failed — Transfer OK, bootloader rejected all 10 patched attempts |
+| 4 | OTA Flash (BLE XMODEM) | SHA-256 cracked, OTA binary created — **awaiting test on working scooter** |
 | 5 | **SPI Flash Direct (rtltool)** | **Verified — Patch written and confirmed via read-back** |
 | 6 | Controller Swap (AliExpress) | Verified by community |
+
+**Current status:** Replacement dashboard on order. OTA patch and test ride pending.
 
 > Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

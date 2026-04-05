@@ -37,7 +37,7 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | 6 | Controller-Tausch (AliExpress) | Von der Community bestätigt |
 | 7 | BLDC-Firmware-Tausch (Global→DE) | **Blockiert** — Dashboard UART-Relay NAK'd alle XMODEM-Blöcke |
 
-**Aktueller Status:** Meter-OTA-Flash verifiziert funktionierend (1080/1080 Blöcke, `rsq dfu_ok`). BLDC-OTA-Flash blockiert durch Dashboard UART-Relay — alle XMODEM-Blöcke NAK'd trotz identischem Protokoll zum funktionierenden Meter-DFU. BLDC-Firmware für DE (v0.0.1.5) und Global (v0.0.1.1) heruntergeladen. APK dekompiliert und DFU-Protokoll vollständig verifiziert.
+**Aktueller Status:** OTA-Transfer funktioniert (1080/1080 ACK'd), aber Bootloader lehnt ALLE modifizierten Firmwares ab trotz korrekter SHA-256 — undokumentierter Integritätscheck auf neuer Dashboard-Hardware. BLDC-DFU blockiert durch Dashboard UART-Relay (per Sniffer bestätigt). Speed-Limit-Bytes in UART Frame A identifiziert bei Firmware-Offset 0xF074 (`MOV R0, #22`). Nächster Schritt: MITM-Proxy oder SPI-Flash-Direktpatch.
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

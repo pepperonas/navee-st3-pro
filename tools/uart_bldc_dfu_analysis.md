@@ -118,18 +118,48 @@ The Navee app probably does BLDC updates in two phases:
 
 Our OTA flasher only implements Phase 1 using XMODEM (which works for meter but not for BLDC upload to dashboard storage).
 
+## Meter OTA Patch — Also Blocked
+
+### SHA-256 is correct but bootloader rejects ALL modifications
+
+The meter firmware NOP patch and speed-byte patch were both correctly implemented:
+- SHA-256 verified: our calculation matches the stored hash in the original firmware
+- SHA-256 regions confirmed identical to Bee2 SDK `slient_dfu_check_sha256()`
+- Even a 1-byte change in padding area (0x00→0x01) with correct SHA-256 is rejected
+
+| Flash Attempt | Modification | SHA-256 | rsq dfu_ok |
+|---|---|---|---|
+| Original firmware (unmodified) | None | Original | **YES** |
+| NOP patch only (0xF848) | 2 bytes + SHA | Recomputed ✓ | **NO** |
+| Speed patch only (0xF074: 22→40) | 1 byte + SHA | Recomputed ✓ | **NO** |
+| NOP + Speed patch | 3 bytes + SHA | Recomputed ✓ | **NO** |
+| 1-byte padding change | 1 byte + SHA | Recomputed ✓ | **NO** |
+
+### UART Speed Bytes Discovery
+
+UART Frame A captures revealed the speed limit bytes sent to the BLDC controller:
+```
+Frame A: 61 30 0A 35 00 88 17 15 01 00 00 00 00 85 9E
+                            ^^ ^^
+                            SPD_A=0x17(23) SPD_B=0x15(21) → 22 km/h
+```
+
+The Ghidra-identified `lift_speed_limit` function (patched at 0xF848) controls the BLE speed report, NOT the UART speed bytes. The UART speed comes from a **separate PID speed table** at offset 0xF074 where `MOV R0, #22` hardcodes the DE limit.
+
+### New UART Frame Types Discovered
+
+During meter firmware reboot, three new controller→dashboard frames appeared:
+- **CMD 0x29** (28 bytes): Serial number `T234554RDE4J00638`
+- **CMD 0x24** (12 bytes): Meter firmware version `"0003"` (v2.0.3.1)
+- **CMD 0x21** (12 bytes): BLDC firmware version `"0015"` (v0.0.1.5)
+
+### Root Cause
+
+This dashboard (replacement unit) has a **newer bootloader or additional integrity check** beyond SHA-256 that the Bee2 SDK source does not document. The original dashboard (short-circuited) may have had a different bootloader that accepted SHA-256-only validation. The SHA-256 algorithm from `silent_dfu_flash.c` is mathematically verified correct for this firmware, but the bootloader performs an additional undocumented check that rejects any modification.
+
 ## Next Steps
 
-**BLDC DFU is a dead end for now.** The working path is the **Meter firmware NOP patch**:
-
-1. `patch_firmware.py` — patches `lift_speed_limit` function (BLS → NOP)
-2. `ota_flasher.py` — flashes patched meter firmware via BLE OTA (verified working: 1080/1080 blocks)
-3. After reboot: BLE CMD `0x6E [0x01, speed_kmh]` sets custom max speed
-
-This approach modifies the **dashboard firmware** (which we CAN flash via OTA) to bypass the speed limit check, regardless of what the BLDC controller firmware says.
-
-```bash
-# Patch and flash
-python3 tools/patch_firmware.py tools/firmware/navee_meter_v2.0.3.1.bin
-python3 tools/ota_flasher.py tools/firmware/navee_meter_v2.0.3.1_PATCHED_OTA.bin --device-id 880002982db1
-```
+1. **MITM Proxy** — intercept Navee app firmware download, serve patched binary; the app handles all checksums correctly
+2. **SPI Flash Direct** — rtltool via UART download mode, write patched sector directly to Bank A, bypass bootloader
+3. **Bootloader ROM Dump** — dump mask ROM at 0x601B9C via rtltool to reverse-engineer the actual validation algorithm
+4. **Navee App Triggered Update** — use official app to flash, then patch via SPI flash

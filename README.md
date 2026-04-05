@@ -37,7 +37,7 @@ This project has fully reverse-engineered the proprietary BLE protocol, develope
 | 6 | Controller Swap (AliExpress) | Verified by community |
 | 7 | BLDC Firmware Swap (Global→DE) | **Blocked** — dashboard UART relay NAKs all XMODEM blocks |
 
-**Current status:** Meter OTA flash verified working (1080/1080 blocks, `rsq dfu_ok`). BLDC OTA flash blocked by dashboard UART relay — all XMODEM blocks NAK'd despite identical protocol to working meter DFU. BLDC firmware for DE (v0.0.1.5) and Global (v0.0.1.1) downloaded. APK decompiled and DFU protocol fully verified.
+**Current status:** OTA transfer works (1080/1080 ACK'd) but bootloader rejects ALL modified firmware despite correct SHA-256 — undocumented integrity check on new dashboard hardware. BLDC DFU blocked by dashboard UART relay (confirmed via sniffer). Speed limit bytes in UART Frame A identified at firmware offset 0xF074 (`MOV R0, #22`). Next: MITM proxy or SPI flash direct patch.
 
 > Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

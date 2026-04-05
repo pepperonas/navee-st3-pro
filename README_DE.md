@@ -35,9 +35,9 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | 4 | OTA-Flash (BLE XMODEM) | SHA-256 geknackt, OTA-Binary erstellt — **wartet auf Test am funktionierenden Scooter** |
 | 5 | **SPI-Flash direkt (rtltool)** | **Bestätigt — Patch geschrieben und per Read-Back verifiziert** |
 | 6 | Controller-Tausch (AliExpress) | Von der Community bestätigt |
-| 7 | **BLDC-Firmware-Tausch (Global→DE)** | **BLDC-Firmware heruntergeladen — Flash ausstehend** |
+| 7 | BLDC-Firmware-Tausch (Global→DE) | **Blockiert** — Dashboard UART-Relay NAK'd alle XMODEM-Blöcke |
 
-**Aktueller Status:** BLDC-Motor-Controller-Firmware für DE- (v0.0.1.5) und Global-Variante (v0.0.1.1) von der Navee-API heruntergeladen. Global-BLDC-Flash per OTA ausstehend. Ersatz-Dashboard bestellt für Meter-OTA-Test.
+**Aktueller Status:** Meter-OTA-Flash verifiziert funktionierend (1080/1080 Blöcke, `rsq dfu_ok`). BLDC-OTA-Flash blockiert durch Dashboard UART-Relay — alle XMODEM-Blöcke NAK'd trotz identischem Protokoll zum funktionierenden Meter-DFU. BLDC-Firmware für DE (v0.0.1.5) und Global (v0.0.1.1) heruntergeladen. APK dekompiliert und DFU-Protokoll vollständig verifiziert.
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 
@@ -280,15 +280,28 @@ Mit `firmware_grabber_bldc.py` haben wir alle 64 Fahrzeugmodelle auf dem Navee-S
 
 Der vorhandene `ota_flasher.py` unterstützt BLDC-Flashen über MCU-Typ 2:
 
-```bash
-# Global-BLDC-Firmware per BLE-OTA flashen
-python3 tools/ota_flasher.py tools/firmware/navee_bldc_v0.0.1.1_ST3_Global,_pid=24012.bin \
-    --device-id AABBCCDDEEFF
-```
+### OTA-Flash-Versuch — Blockiert
 
-Der DFU-Befehl `"down dfu_start 2\r"` adressiert den BLDC-Motor-Controller statt des Meters (Typ 1).
+Der vollständige DFU-Flow läuft bis zur XMODEM-Datenübertragung:
 
-> **Risiko:** Die Global-Version ist älter (v0.0.1.1 vs. v0.0.1.5). Neben der Entfernung des Speed-Limits könnten Bugfixes der neueren DE-Firmware fehlen.
+| Schritt | Befehl | Ergebnis |
+|---------|--------|----------|
+| Auth | CMD 0x30 | OK (Device-ID aus BT-HCI-Snoop) |
+| DFU-Entry | `down dfu_start 2\r` | `ok` |
+| Key Exchange | `ble_rand` + `ble_key` | OK (XOR mit AES Key 1) |
+| XMODEM Ready | Warten auf `0x43` ('C') | Empfangen |
+| **Block 1** | SOH+seq+Daten+CRC16 | **NAK `0x15 0x01`** |
+
+Alle weiteren Blöcke scheitern ebenfalls (Timeout — BLDC reagiert nicht mehr nach erstem NAK).
+
+**Ursache:** Das Dashboard bleibt im Applikationsmodus während BLDC-DFU (anders als Meter-DFU wo es in den Bootloader rebootet). Der UART-Relay zwischen Dashboard und BLDC-Motor-Controller beschädigt oder kürzt die XMODEM-Blöcke. Meter-DFU (`dfu_start 1`) mit demselben Code, denselben BLE-Parametern und derselben XMODEM-Implementierung funktioniert einwandfrei (1080/1080 Blöcke ACK'd).
+
+**Verifiziert identisch zur APK:** Block-Format (SOH+seq+~seq+128Daten+CRC16-BE), CRC-Algorithmus (Poly 0x1021, Init 0), Write-Characteristic (0xb002), Write-Typ (ohne Response), Dateiinhalt (SHA-256 gegen frischen Download verifiziert). Das Problem liegt in der UART-Relay-Implementierung der Dashboard-Firmware und kann von der BLE-Seite nicht debuggt werden.
+
+**Verbleibende Ansätze:**
+- BLDC-Update über die offizielle Navee-App triggern (nutzt möglicherweise anderen internen Mechanismus)
+- Direkte UART-Verbindung zum BLDC per ESP32/Arduino (Dashboard-Relay umgehen)
+- Meter-Firmware NOP-Patch (bewährt funktionierend per SPI-Flash und OTA)
 
 ---
 

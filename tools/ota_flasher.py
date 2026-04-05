@@ -328,10 +328,16 @@ class NaveeOTAFlasher:
         self.last_responses.append(raw)
 
         # XMODEM State Machine: ACK/NAK/CAN handling during transfer
-        if self._xmodem_active and len(raw) <= 4:
-            if XMODEM_ACK in raw:
+        if self._xmodem_active:
+            # Log ALL raw notifications during XMODEM for debugging
+            hex_raw = " ".join(f"{b:02X}" for b in raw[:20])
+            is_telemetry = len(raw) > 4 and raw[0] == 0x55 and raw[1] == 0xAA
+            if not is_telemetry:
+                print(f"\n  [XMODEM RX] {hex_raw} (len={len(raw)})")
+            self.log.log("xmodem_notify", hex=hex_raw, length=len(raw), is_telemetry=is_telemetry)
+            if raw[0] == XMODEM_ACK or (len(raw) <= 4 and XMODEM_ACK in raw):
                 # APK B() method: validates (bArr[1] + 1) % 256 == expected_seq
-                if len(raw) >= 2:
+                if len(raw) >= 2 and raw[0] == XMODEM_ACK:
                     ack_block = raw[1]
                     validated_seq = (ack_block + 1) % 256
                     if validated_seq == 0:
@@ -399,7 +405,8 @@ class NaveeOTAFlasher:
         if not self.client or not self.client.is_connected:
             raise ConnectionError("Not connected to scooter")
         self.log.log("ble_write", data=hex_str(data))
-        await self.client.write_gatt_char(WRITE_UUID, data, response=False)
+        # APK default: WRITE_TYPE_DEFAULT (2) = write-with-response for commands
+        await self.client.write_gatt_char(WRITE_UUID, data, response=True)
 
     async def _send_cmd(self, cmd: int, data: bytes = b"") -> Optional[dict]:
         """Send a command and wait for the response."""
@@ -482,6 +489,16 @@ class NaveeOTAFlasher:
         print(f"  Connected!")
         self.log.log("connect_ok", address=address)
 
+        # Force service discovery (fixes macOS CoreBluetooth cache issues)
+        try:
+            svcs = self.client.services
+            if svcs:
+                print(f"  Services: {len(svcs)} discovered")
+            else:
+                print("  WARNING: No services found")
+        except Exception as e:
+            print(f"  WARNING: Service discovery issue: {e}")
+
         # Subscribe to notifications
         try:
             await self.client.start_notify(NOTIFY_UUID, self._on_notify)
@@ -500,6 +517,29 @@ class NaveeOTAFlasher:
             except Exception:
                 pass
         print("  Disconnected.")
+
+    async def _safe_write(self, uuid: str, data: bytes, retries: int = 2,
+                         response: bool = True) -> bool:
+        """Write to GATT characteristic with automatic reconnect on failure."""
+        for attempt in range(retries + 1):
+            try:
+                await self.client.write_gatt_char(uuid, data, response=response)
+                return True
+            except Exception as e:
+                if attempt < retries and self.device_address:
+                    print(f"  BLE Write fehlgeschlagen ({e}). Reconnecting...")
+                    try:
+                        await asyncio.sleep(3.0)
+                        await self.connect(self.device_address)
+                        print("  Reconnect OK!")
+                        await asyncio.sleep(1.0)
+                    except Exception as e2:
+                        print(f"  Reconnect fehlgeschlagen: {e2}")
+                        return False
+                else:
+                    print(f"  BLE Write endgültig fehlgeschlagen: {e}")
+                    return False
+        return False
 
     # --- Authentication ---
 
@@ -643,11 +683,8 @@ class NaveeOTAFlasher:
         # Sende den verifizierten Text-Command
         dfu_cmd = f"down dfu_start {mcu_type}\r".encode("ascii")
         print(f"  TX: {dfu_cmd!r}")
-        try:
-            await self.client.write_gatt_char(WRITE_UUID, dfu_cmd, response=False)
-        except Exception as e:
-            print(f"  FEHLER beim Senden: {e}")
-            self.log.log("dfu_enter_send_error", error=str(e))
+        if not await self._safe_write(WRITE_UUID, dfu_cmd):
+            self.log.log("dfu_enter_send_error", error="safe_write_failed")
             return False
 
         self.log.log("dfu_enter_sent", cmd=dfu_cmd.decode("ascii").strip())
@@ -728,7 +765,9 @@ class NaveeOTAFlasher:
         XMODEM block format: SOH + seq + ~seq + 128 data bytes + CRC-16 (BE)
         """
         fw_data = firmware_path.read_bytes()
-        total_blocks = fw_info["blocks"]
+
+        total_blocks = (len(fw_data) + XMODEM_BLOCK_SIZE - 1) // XMODEM_BLOCK_SIZE
+        print(f"  Sending {len(fw_data)} bytes, {total_blocks} blocks")
 
         print(f"\n{'='*60}")
         print(f"  FIRMWARE FLASH (APK State Machine)")
@@ -756,6 +795,26 @@ class NaveeOTAFlasher:
         retried_blocks = 0
         start_time = time.monotonic()
         running_seq = 0
+        use_checksum = False  # CRC mode (NAK confirmed BLDC responds to CRC blocks)
+
+        # Log BLE write capacity and characteristic properties
+        try:
+            max_write = self.client.mtu_size - 3
+            print(f"  BLE MTU: {self.client.mtu_size}, max write: {max_write} bytes")
+        except Exception:
+            max_write = 20
+            print(f"  BLE MTU: unknown (assuming {max_write} bytes max write)")
+
+        # Inspect write characteristic properties
+        try:
+            for svc in self.client.services:
+                for char in svc.characteristics:
+                    if WRITE_UUID.lower() in str(char.uuid).lower():
+                        print(f"  Write char: {char.uuid}")
+                        print(f"  Properties: {char.properties}")
+                        print(f"  Max write (no-resp): {char.max_write_without_response_size}")
+        except Exception as e:
+            print(f"  Char inspection: {e}")
 
         try:
             for block_num in range(1, total_blocks + 1):
@@ -772,14 +831,29 @@ class NaveeOTAFlasher:
                     running_seq = 1
                 seq = running_seq
                 seq_comp = (~seq) & 0xFF
-                crc = crc16_xmodem(block_data)
 
                 xmodem_block = bytearray()
                 xmodem_block.append(XMODEM_SOH)
                 xmodem_block.append(seq)
                 xmodem_block.append(seq_comp)
                 xmodem_block += block_data
-                xmodem_block += struct.pack(">H", crc)
+
+                if use_checksum:
+                    # XMODEM checksum mode: 1-byte sum
+                    xmodem_block.append(sum(block_data) & 0xFF)
+                else:
+                    # XMODEM CRC mode: 2-byte CRC-16 big-endian
+                    crc = crc16_xmodem(block_data)
+                    xmodem_block += struct.pack(">H", crc)
+
+                # Log block 1 details for debugging
+                if block_num == 1:
+                    mode = "CHECKSUM" if use_checksum else "CRC"
+                    hdr = " ".join(f"{b:02X}" for b in xmodem_block[:5])
+                    tail = " ".join(f"{b:02X}" for b in xmodem_block[-5:])
+                    print(f"\n  Block 1 ({mode}): {len(xmodem_block)} bytes")
+                    print(f"    Head: {hdr}...")
+                    print(f"    ...Tail: {tail}")
 
                 # Progress bar
                 pct = (block_num / total_blocks) * 100
@@ -802,7 +876,7 @@ class NaveeOTAFlasher:
                     continue
 
                 # --- APK State Machine: send block, wait for valid ACK ---
-                max_retries = 3
+                max_retries = 5
                 block_ok = False
 
                 for retry in range(max_retries):
@@ -813,8 +887,9 @@ class NaveeOTAFlasher:
                     self._xmodem_expected_seq = seq
 
                     try:
+                        block_bytes = bytes(xmodem_block)
                         await self.client.write_gatt_char(
-                            WRITE_UUID, bytes(xmodem_block), response=False)
+                            WRITE_UUID, block_bytes, response=False)
                     except Exception as e:
                         err = str(e)
                         if "not connected" in err.lower() or "Service Discovery" in err:
@@ -826,9 +901,9 @@ class NaveeOTAFlasher:
                             continue
                         break
 
-                    # Warte auf ACK/NAK/CAN — 500ms Timeout (APK: v() timer)
+                    # Warte auf ACK/NAK/CAN — 3s Timeout (increased for BLDC)
                     try:
-                        await asyncio.wait_for(self._xmodem_ack_event.wait(), timeout=0.5)
+                        await asyncio.wait_for(self._xmodem_ack_event.wait(), timeout=3.0)
                     except asyncio.TimeoutError:
                         # Timeout — wie APK y() → Failure für diesen Block
                         if retry < max_retries - 1:
@@ -845,6 +920,10 @@ class NaveeOTAFlasher:
                     # NAK — Retransmit
                     if self._xmodem_nak_received:
                         retried_blocks += 1
+                        print(f"\n  NAK block {block_num} (retry {retry+1}/{max_retries})")
+                        # Wait for next 'C' before retransmitting
+                        print("  Warte auf erneutes 'C'...")
+                        await asyncio.sleep(2.0)
                         if retry < max_retries - 1:
                             continue
                         break
@@ -870,7 +949,7 @@ class NaveeOTAFlasher:
                     if failed_blocks <= 3:
                         print(f"\n  Block {block_num} fehlgeschlagen (seq={seq})")
                     self.log.log("block_failed", block=block_num, seq=seq)
-                    if failed_blocks >= 10:
+                    if failed_blocks >= 5:
                         print(f"\n  ABORT: Zu viele fehlgeschlagene Blöcke ({failed_blocks})")
                         self.log.log("transfer_aborted", reason="too_many_failures",
                                      failed=failed_blocks, successful=successful_blocks)
@@ -1025,7 +1104,9 @@ class NaveeOTAFlasher:
     # --- Main Flash Orchestration ---
 
     async def run_flash(self, firmware_path: Path, device_id: bytes,
-                        address: Optional[str] = None, backup_first: bool = False):
+                        address: Optional[str] = None, backup_first: bool = False,
+                        skip_auth: bool = False, skip_key_exchange: bool = False,
+                        bldc_mode: bool = False):
         """Full OTA flash workflow."""
 
         print("\n" + "=" * 60)
@@ -1108,17 +1189,23 @@ class NaveeOTAFlasher:
 
         try:
             # --- Step 2: Authenticate ---
-            print("\n[Step 2] Authenticating...")
-            if not await self.authenticate(device_id):
-                print("  Authentication failed. Aborting.")
-                return False
+            if skip_auth:
+                print("\n[Step 2] SKIPPING authentication (--skip-auth)")
+                print("  Going directly to DFU mode...")
+                await asyncio.sleep(0.5)
+                scooter_info = {}
+            else:
+                print("\n[Step 2] Authenticating...")
+                if not await self.authenticate(device_id):
+                    print("  Authentication failed. Aborting.")
+                    return False
 
-            # Small delay after auth for telemetry to start
-            await asyncio.sleep(1.0)
+                # Small delay after auth for telemetry to start
+                await asyncio.sleep(1.0)
 
-            # --- Step 3: Read current info ---
-            print("\n[Step 3] Reading scooter info...")
-            scooter_info = await self.read_all_info()
+                # --- Step 3: Read current info ---
+                print("\n[Step 3] Reading scooter info...")
+                scooter_info = await self.read_all_info()
 
             # --- Step 3b: Backup ---
             if backup_first:
@@ -1173,9 +1260,97 @@ class NaveeOTAFlasher:
                 return False
 
             # --- Step 6: Key Exchange (ble_rand + ble_key) ---
-            print("\n[Step 6] Key Exchange...")
-            await asyncio.sleep(1.0)  # Kurz warten nach DFU-Entry
-            if self.dry_run:
+            if skip_key_exchange:
+                print("\n[Step 6] SKIPPING Key Exchange (--skip-key-exchange)")
+                print("  Going directly to XMODEM...")
+                await asyncio.sleep(1.0)
+            elif bldc_mode:
+                print("\n[Step 6] BLDC Key Exchange (single attempt, expect disconnect)...")
+                await asyncio.sleep(1.0)
+
+                # 6a: ble_rand
+                self.last_responses.clear()
+                print("  TX: 'down ble_rand'")
+                if not await self._safe_write(WRITE_UUID, b"down ble_rand\r"):
+                    print("  ble_rand senden fehlgeschlagen")
+                    return False
+                self.log.log("dfu_ble_rand_sent")
+                await asyncio.sleep(2.0)
+
+                # Parse response
+                rand_response = None
+                for resp in self.last_responses:
+                    if b"ok" in resp:
+                        rand_response = resp
+                        break
+
+                if not rand_response or len(rand_response) <= 4:
+                    print("  Keine ble_rand Response!")
+                    return False
+
+                ok_idx = rand_response.find(b"ok ")
+                if ok_idx < 0:
+                    print("  Unerwartete Response")
+                    return False
+
+                after_ok = rand_response[ok_idx + 3:]
+                if after_ok.endswith(b"\r"):
+                    after_ok = after_ok[:-1]
+                status_byte = after_ok[0] if after_ok else 0xFF
+                cipher_bytes = after_ok[1:]
+                print(f"  Status: 0x{status_byte:02X}, Cipher: {len(cipher_bytes)} bytes")
+
+                if len(cipher_bytes) < 16:
+                    print("  Cipher zu kurz!")
+                    return False
+
+                # 6b: Decrypt and send ble_key — single attempt, no retry
+                key = AES_KEYS[1]
+                if status_byte == 0x00:
+                    decrypted = bytes(c ^ k for c, k in zip(cipher_bytes[:16], key[:16]))
+                else:
+                    from Crypto.Cipher import AES as PyCryptoAES
+                    decrypted = PyCryptoAES.new(key, PyCryptoAES.MODE_ECB).decrypt(cipher_bytes[:16])
+
+                key_cmd = b"down ble_key " + decrypted + b"\r"
+                print(f"  TX: 'down ble_key' (Key 1, {'XOR' if status_byte == 0 else 'AES'})")
+
+                # Send — expect disconnect after this!
+                try:
+                    await self.client.write_gatt_char(WRITE_UUID, key_cmd, response=False)
+                except Exception as e:
+                    print(f"  Write result: {e} (expected if BLE disconnects)")
+
+                # Wait for disconnect — this is NORMAL for BLDC DFU
+                print("  Warte 5s auf BLE-Disconnect (normal bei BLDC DFU)...")
+                await asyncio.sleep(5.0)
+
+                # Reconnect
+                print("  Reconnecting...")
+                try:
+                    if self.client.is_connected:
+                        await self.client.disconnect()
+                except Exception:
+                    pass
+                await asyncio.sleep(2.0)
+
+                reconnected = False
+                for attempt in range(3):
+                    try:
+                        await self.connect(self.device_address)
+                        reconnected = True
+                        print(f"  Reconnect OK (Versuch {attempt + 1})")
+                        break
+                    except Exception as e:
+                        print(f"  Reconnect Versuch {attempt + 1} fehlgeschlagen: {e}")
+                        await asyncio.sleep(3.0)
+
+                if not reconnected:
+                    print("  Reconnect endgültig fehlgeschlagen!")
+                    return False
+
+            elif self.dry_run:
+                print("\n[Step 6] Key Exchange...")
                 print("  [DRY RUN] Would send ble_rand + ble_key")
             else:
                 # Prüfe ob Verbindung noch steht
@@ -1192,8 +1367,9 @@ class NaveeOTAFlasher:
                 # Schritt 6a: Random anfordern
                 self.last_responses.clear()
                 print("  TX: 'down ble_rand'")
-                await self.client.write_gatt_char(
-                    WRITE_UUID, b"down ble_rand\r", response=False)
+                if not await self._safe_write(WRITE_UUID, b"down ble_rand\r"):
+                    print("  ble_rand senden fehlgeschlagen")
+                    return False
                 self.log.log("dfu_ble_rand_sent")
 
                 await asyncio.sleep(2.0)
@@ -1248,8 +1424,10 @@ class NaveeOTAFlasher:
 
                             self.last_responses.clear()
                             print(f"  TX: 'down ble_key <{len(decrypted)} bytes>'")
-                            await self.client.write_gatt_char(
-                                WRITE_UUID, key_cmd, response=False)
+
+                            if not await self._safe_write(WRITE_UUID, key_cmd):
+                                print("  ble_key senden fehlgeschlagen")
+                                return False
                             self.log.log("dfu_ble_key_sent", method="XOR" if status_byte == 0 else "AES")
                             await asyncio.sleep(2.0)
 
@@ -1275,8 +1453,9 @@ class NaveeOTAFlasher:
                                     retry_cmd = b"down ble_key " + dec + b"\r"
                                     self.last_responses.clear()
                                     print(f"  Retry Key {ki} ({'XOR' if status_byte == 0 else 'AES'})...")
-                                    await self.client.write_gatt_char(
-                                        WRITE_UUID, retry_cmd, response=False)
+                                    if not await self._safe_write(WRITE_UUID, retry_cmd):
+                                        print("  Retry Write fehlgeschlagen")
+                                        break
                                     await asyncio.sleep(1.5)
                                     for resp in self.last_responses:
                                         if b"ok" in resp:
@@ -1331,6 +1510,10 @@ class NaveeOTAFlasher:
 
                 if xmodem_ready:
                     print("  XMODEM Ready! (0x43)")
+                    print("  Warte 2s für Relay-Setup...")
+                    await asyncio.sleep(2.0)
+                    # Clear any stale responses/signals before transfer
+                    self.last_responses.clear()
                     self.log.log("xmodem_ready")
                 else:
                     print("  Kein 0x43 Signal nach 10s.")
@@ -1422,6 +1605,12 @@ WARNING: Flashing firmware can permanently brick your scooter!
                         help="Analyze firmware file and exit (no BLE needed)")
     parser.add_argument("--test-dfu-entry", action="store_true",
                         help="Test DFU mode entry only (no flash, safe abort)")
+    parser.add_argument("--skip-auth", action="store_true",
+                        help="Skip CMD 0x30 auth, go directly to DFU mode")
+    parser.add_argument("--skip-key-exchange", action="store_true",
+                        help="Skip ble_rand/ble_key, go directly to XMODEM after dfu_start")
+    parser.add_argument("--bldc-mode", action="store_true",
+                        help="BLDC flash mode: skip auth, single key attempt, expect disconnect after ble_key")
     parser.add_argument("--test-key-exchange", action="store_true",
                         help="Test DFU key exchange with all 5 AES keys + skip option")
 
@@ -1474,8 +1663,9 @@ WARNING: Flashing firmware can permanently brick your scooter!
         except ValueError:
             pass
 
-    if device_id is None and (args.read_info or args.firmware or args.test_dfu_entry
-                              or args.test_key_exchange):
+    if device_id is None and not getattr(args, 'skip_auth', False) and (
+            args.read_info or args.firmware or args.test_dfu_entry
+            or args.test_key_exchange):
         print("\nDevice ID required for authentication.")
         print("The Device ID is your 6-byte Navee Account ID (from BT-HCI capture).")
         print("Format: 12 hex characters, e.g., AABBCCDDEEFF")
@@ -1825,15 +2015,23 @@ WARNING: Flashing firmware can permanently brick your scooter!
             print(f"ERROR: Firmware file not found: {fw_path}")
             sys.exit(1)
 
+        # Provide dummy device_id when skipping auth
+        if device_id is None and args.skip_auth:
+            device_id = b'\x00' * 6
+
         flasher = NaveeOTAFlasher(dry_run=args.dry_run)
         flasher.log.log("session_start", mode="flash", dry_run=args.dry_run,
                         firmware=str(fw_path))
 
+        bldc = getattr(args, 'bldc_mode', False)
         await flasher.run_flash(
             firmware_path=fw_path,
             device_id=device_id,
             address=args.address,
             backup_first=args.backup_first,
+            skip_auth=bldc or args.skip_auth,
+            skip_key_exchange=getattr(args, 'skip_key_exchange', False),
+            bldc_mode=bldc,
         )
         return
 

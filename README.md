@@ -35,9 +35,9 @@ This project has fully reverse-engineered the proprietary BLE protocol, develope
 | 4 | OTA Flash (BLE XMODEM) | SHA-256 cracked, OTA binary created — **awaiting test on working scooter** |
 | 5 | **SPI Flash Direct (rtltool)** | **Verified — Patch written and confirmed via read-back** |
 | 6 | Controller Swap (AliExpress) | Verified by community |
-| 7 | **BLDC Firmware Swap (Global→DE)** | **BLDC firmware downloaded — flash pending** |
+| 7 | BLDC Firmware Swap (Global→DE) | **Blocked** — dashboard UART relay NAKs all XMODEM blocks |
 
-**Current status:** BLDC motor controller firmware for both DE (v0.0.1.5) and Global (v0.0.1.1) variants downloaded from Navee API. Global BLDC flash via OTA pending. Replacement dashboard on order for meter OTA test.
+**Current status:** Meter OTA flash verified working (1080/1080 blocks, `rsq dfu_ok`). BLDC OTA flash blocked by dashboard UART relay — all XMODEM blocks NAK'd despite identical protocol to working meter DFU. BLDC firmware for DE (v0.0.1.5) and Global (v0.0.1.1) downloaded. APK decompiled and DFU protocol fully verified.
 
 > Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 
@@ -280,15 +280,28 @@ Using `firmware_grabber_bldc.py`, we queried all 64 vehicle models on the Navee 
 
 The existing `ota_flasher.py` supports BLDC flashing via MCU type 2:
 
-```bash
-# Flash Global BLDC firmware via BLE OTA
-python3 tools/ota_flasher.py tools/firmware/navee_bldc_v0.0.1.1_ST3_Global,_pid=24012.bin \
-    --device-id AABBCCDDEEFF
-```
+### OTA Flash Attempt — Blocked
 
-The DFU command `"down dfu_start 2\r"` targets the BLDC motor controller instead of the meter (type 1).
+The full DFU flow completes up to the XMODEM data transfer:
 
-> **Risk:** The Global version is older (v0.0.1.1 vs v0.0.1.5). Besides the speed limit removal, bugfixes from the newer DE firmware may be missing.
+| Step | Command | Result |
+|------|---------|--------|
+| Auth | CMD 0x30 | OK (device ID from BT HCI snoop) |
+| DFU Entry | `down dfu_start 2\r` | `ok` |
+| Key Exchange | `ble_rand` + `ble_key` | OK (XOR with AES Key 1) |
+| XMODEM Ready | Wait for `0x43` ('C') | Received |
+| **Block 1** | SOH+seq+data+CRC16 | **NAK `0x15 0x01`** |
+
+Every subsequent block also fails (timeout — BLDC stops responding after first NAK).
+
+**Root cause:** The dashboard stays in application mode during BLDC DFU (unlike meter DFU where it reboots into bootloader). The UART relay between dashboard and BLDC motor controller corrupts or truncates the XMODEM blocks. Meter DFU (`dfu_start 1`) with the same code, same BLE parameters, same XMODEM implementation works flawlessly (1080/1080 blocks ACK'd).
+
+**Verified identical to APK:** Block format (SOH+seq+~seq+128data+CRC16-BE), CRC algorithm (poly 0x1021, init 0), write characteristic (0xb002), write type (without-response), file content (SHA-256 verified against fresh download). The problem is inside the dashboard firmware's UART relay, which cannot be debugged from the BLE side.
+
+**Remaining approaches:**
+- Trigger BLDC update via official Navee app (may use different internal mechanism)
+- Direct UART connection to BLDC via ESP32/Arduino (bypass dashboard relay)
+- Meter firmware NOP patch (proven working via SPI flash and OTA)
 
 ---
 

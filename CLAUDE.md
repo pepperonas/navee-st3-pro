@@ -60,10 +60,18 @@ The scooter's Product ID (PID), extracted from BLE scan record bytes 6-8, determ
 
 ### Tools Directory (`tools/`)
 - `firmware_grabber.py` / `ota_flasher.py` / `patch_firmware.py` — Firmware download, OTA flash, binary patching
+- `firmware_grabber_bldc.py` — Extended grabber: all FW types, all models, Google login support
 - `ghidra_area_code.py` — Ghidra script for firmware analysis
 - `rtl_rom_dump.py` / `rtl_flash_dump.py` — RTL chipset memory dumping
 - `test_speed_set.py` / `test_speed_raw.py` / `test_eot.py` — Manual BLE protocol tests
 - `tools/arduino/` — Arduino/ESP32 sketches for hardware interfacing
+
+### Reverse Engineering (`reverse-engineering/`)
+- `com.navee.ucaret.apk` — Official Navee Android APK
+- `navee-apk-decompiled/` — jadx decompilation of the official app (567 Java files)
+- `APK_ANALYSIS.md` — Complete reference: API endpoints, BLE protocol, DFU flow, data structures
+- Key decompiled packages: `_ble_manager/` (BLE protocol), `dfu/` (OTA), `bean/` (data models), `ui/` (all Activities)
+- Obfuscated packages renamed: `b4→_ble_manager`, `d4→_http_client`, `e4→_config`, `g4→_session`
 
 ### Critical Implementation Notes
 - Response `data[0]` is a version/type byte — actual payload starts at `data[1]`

@@ -15,6 +15,7 @@
 [![SPI Flash](https://img.shields.io/badge/SPI%20Flash-Patch%20Verified-00C853.svg)](#spi-flash-direktpatch)
 [![OTA](https://img.shields.io/badge/OTA%20Patch-Untested-FFA726.svg)](#patch_firmwarepy--automatischer-ota-patcher)
 [![Speed](https://img.shields.io/badge/Speed%20Unlock-Awaiting%20Test-FFA726.svg)](#der-patch)
+[![BLDC](https://img.shields.io/badge/BLDC%20FW-Downloaded-00C853.svg)](#bldc-firmware-swap)
 
 ---
 
@@ -34,8 +35,9 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | 4 | OTA-Flash (BLE XMODEM) | SHA-256 geknackt, OTA-Binary erstellt — **wartet auf Test am funktionierenden Scooter** |
 | 5 | **SPI-Flash direkt (rtltool)** | **Bestätigt — Patch geschrieben und per Read-Back verifiziert** |
 | 6 | Controller-Tausch (AliExpress) | Von der Community bestätigt |
+| 7 | **BLDC-Firmware-Tausch (Global→DE)** | **BLDC-Firmware heruntergeladen — Flash ausstehend** |
 
-**Aktueller Status:** Ersatz-Dashboard bestellt. OTA-Patch und Testfahrt stehen aus.
+**Aktueller Status:** BLDC-Motor-Controller-Firmware für DE- (v0.0.1.5) und Global-Variante (v0.0.1.1) von der Navee-API heruntergeladen. Global-BLDC-Flash per OTA ausstehend. Ersatz-Dashboard bestellt für Meter-OTA-Test.
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 
@@ -237,6 +239,74 @@ Schritt 7: EOT (0x04)                -> "rsq dfu_ok\r"
 
 ---
 
+## BLDC-Firmware-Tausch
+
+**Angriffsvektor #7: Die internationale (Global) BLDC-Firmware auf den deutschen Scooter flashen, um die 22-km/h-Geschwindigkeitsbegrenzung auf Motor-Controller-Ebene zu entfernen.**
+
+### Entdeckung
+
+Der Navee-API-Endpoint `POST /vehicle/modelSoftware` liefert Firmware-Updates für **4 separate MCU-Typen**:
+
+| Komponente | Typ-Byte | MCU-ID | Beschreibung |
+|------------|----------|--------|--------------|
+| `meterList` | 0x01 | 1 | Dashboard (RTL8762C) |
+| `bldcList` | 0x02 | 2 | Motor-Controller |
+| `bmsList` | 0x03 | 3 | Batterie-Management-System |
+| `screenList` | 0x04 | 4 | Display/Bildschirm |
+
+Mit `firmware_grabber_bldc.py` haben wir alle 64 Fahrzeugmodelle auf dem Navee-Server abgefragt und **BLDC-Firmware für 32 Modelle** gefunden, darunter beide ST3-PRO-Varianten.
+
+### ST3 PRO DE vs. ST3 Global — BLDC-Vergleich
+
+| | **ST3 PRO DE** (pid=23452) | **ST3 Global** (pid=24012) |
+|---|---|---|
+| BLDC-Version | v0.0.1.5 (neuer) | v0.0.1.1 |
+| BLDC-Größe | 53.376 Bytes (52,1 KB) | 47.232 Bytes (46,1 KB) |
+| Modell-String | T2324 | T2324 |
+| Typ-Byte | 0x02 (BLDC) | 0x02 (BLDC) |
+| Meter-Version | v2.0.3.1 | v2.0.3.1 |
+| BMS verfügbar | Ja (v1.0.0.4) | Nein |
+
+**Schlüsselerkenntnis:** Beide verwenden den identischen Hardware-Modell-String `T2324` — die Firmware ist hardware-kompatibel. Die DE-Version ist 6 KB größer und enthält eine **Ländercode-Lookup-Tabelle** (`CNESDEITAUEUUSJPFRNERUSEATNLc|w{`), die in der Global-Version fehlt. Dies deutet darauf hin, dass regionale Geschwindigkeitslimits über diese Tabelle durchgesetzt werden.
+
+### Binärvergleich-Ergebnisse
+
+- **91,8 % der Bytes unterschiedlich** — komplett verschiedene Builds, kein einfacher Patch
+- **Keine direkte 22↔25-Byte-Substitution** vorhanden — Speed-Limit ist tabellengesteuert
+- DE-Firmware hat **6.144 Extra-Bytes** mit Lookup-Tabellen (Ländercodes, Motorkennlinien)
+- Beide Firmwares teilen das Modell `T2324` und sind für dieselbe Hardware-Plattform gebaut
+
+### Flash-Prozedur
+
+Der vorhandene `ota_flasher.py` unterstützt BLDC-Flashen über MCU-Typ 2:
+
+```bash
+# Global-BLDC-Firmware per BLE-OTA flashen
+python3 tools/ota_flasher.py tools/firmware/navee_bldc_v0.0.1.1_ST3_Global,_pid=24012.bin \
+    --device-id AABBCCDDEEFF
+```
+
+Der DFU-Befehl `"down dfu_start 2\r"` adressiert den BLDC-Motor-Controller statt des Meters (Typ 1).
+
+> **Risiko:** Die Global-Version ist älter (v0.0.1.1 vs. v0.0.1.5). Neben der Entfernung des Speed-Limits könnten Bugfixes der neueren DE-Firmware fehlen.
+
+---
+
+## APK-Dekompilierung
+
+Die offizielle Navee-APK (`com.navee.ucaret`) wurde mit jadx dekompiliert, um die API- und DFU-Protokolle rückzuentwickeln. Wichtigste Erkenntnisse:
+
+- **Login-Endpoint:** `POST /loginByOther` mit `loginType=2` für Google OAuth (entdeckt in `LoginActivity.java`)
+- **Firmware-API:** `POST /vehicle/modelSoftware` liefert 4 Firmware-Listen (Meter, BLDC, BMS, Screen)
+- **DFU-Protokoll:** Textbasierte Befehle (`"down dfu_start <MCU_TYPE>\r"`) gefolgt von XMODEM-CRC-Dateitransfer
+- **5 regionale AES-128-ECB-Schlüssel** für BLE-Authentifizierung (CN, UK, EU, US und eine 5. Variante)
+- **24 Ländercodes** mit SKU-Varianten (EUR, ITA, USA) zur Steuerung der Geschwindigkeitslimits pro Region
+- **64 Fahrzeugmodelle** auf dem Navee-Server entdeckt
+
+> Vollständige Referenz: [`reverse-engineering/APK_ANALYSIS.md`](reverse-engineering/APK_ANALYSIS.md)
+
+---
+
 ## Android-Controller-App
 
 - BLE-Auto-Connect, AES-128-Authentifizierung, Echtzeit-Telemetrie
@@ -270,10 +340,17 @@ navee/
 |   |   +-- sector_0x1D000_backup.bin             Original-Sektor (vor Patch)
 |   |   +-- sector_0x1D000_patched.bin            Gepatchter Sektor (flash-bereit)
 |   +-- firmware_grabber.py           Firmware von Navee-API herunterladen
+|   +-- firmware_grabber_bldc.py      BLDC-Firmware-Hunter (alle Modelle, Google-Auth)
+|   +-- bldc_compare.py              Binärvergleich: DE vs. Global BLDC
+|   +-- probe_google_auth.py         Navee-API-Auth-Endpoint-Erkundung
 |   +-- ota_flasher.py                BLE-OTA-Flasher (macOS/bleak)
 |   +-- patch_firmware.py             Automatischer Patcher + SHA-256-Neuberechnung
 |   +-- rtl_flash_dump.py             RTL8762C-Flash-Dump-Skript
 |   +-- ghidra_analysis/              10 Ghidra-Headless-Skripte
++-- reverse-engineering/
+|   +-- com.navee.ucaret.apk            Offizielle Navee-APK
+|   +-- navee-apk-decompiled/           Dekompilierte App-Quellen (jadx, 567 Dateien)
+|   +-- APK_ANALYSIS.md                 Vollständige API-, BLE-, DFU-Referenz aus APK
 +-- archive/                          UART-MitM (gescheiterter Ansatz Nr. 2)
 ```
 

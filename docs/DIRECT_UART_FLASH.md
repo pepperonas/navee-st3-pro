@@ -7,31 +7,63 @@ Based on the Navee service tool "Download_Tool_S" discovered in a YouTube servic
 
 The BLDC controller has its own UART bootloader. The Navee service tool connects a USB-UART adapter directly to the controller (dashboard disconnected) and sends firmware via XMODEM.
 
+## Critical Discovery: Two-Wire UART (2026-04-08)
+
+The UART between dashboard and controller uses **two separate wires**, not a single half-duplex line:
+
+| Wire   | Function           | Direction              | Voltage | Role |
+|--------|--------------------|------------------------|---------|------|
+| **Yellow** | **Controller RX** | Dashboard → Controller | 3.8V    | Controller receives commands here |
+| **Green**  | **Controller TX**  | Controller → Dashboard | 4.12V   | Controller sends responses here |
+
+**This explains why all previous UART attempts failed:** We always sent on Green, but the controller only receives on Yellow!
+
+### Evidence
+1. Disconnecting Yellow from dashboard → **controller beeps** (error: no dashboard signal)
+2. CP2102 TX (3.3V) on Yellow → **kills all communication** (voltage too low, controller confused)
+3. Only listening on Green → both 0x61 and 0x64 frames visible (crosstalk from Yellow in cable harness)
+4. Navee service technician video shows adapter connected to **both** Yellow and Green
+5. Different idle voltages: Green=4.12V, Yellow=3.8V (separate drivers)
+
+### Voltage Level Problem
+The Yellow wire operates at **3.8V logic level**. Standard CP2102 adapters output only 3.3V, which is insufficient. Solutions:
+- Use a **3.3V→5V level shifter** between CP2102 TX and Yellow wire
+- Use a **5V-capable UART adapter** (some CP2102 boards have a 3.3V/5V jumper)
+- Use an **Arduino 5V** as UART bridge (Serial at 19200, pin-to-Yellow with voltage divider on RX)
+
 ## Hardware Setup
 
 ```
 CP2102 USB-UART          Scooter Cable Harness
-  TX  ──┬──────────────  Green wire (UART, half-duplex)
-  RX  ──┘
-  GND ─────────────────  Black wire (GND)
+  TX  ─────────────────  Yellow wire (Controller RX)
+  RX  ─────────────────  Green wire  (Controller TX)
+  GND ─────────────────  Black wire  (GND)
   
   DO NOT CONNECT:
   - Red wire (53V battery!)
   - Blue wire (52V battery!)
-  - Yellow wire (signal)
 ```
 
-**CRITICAL:** Disconnect the dashboard from the cable harness before connecting the CP2102. The green wire is half-duplex — both TX and RX go on the same wire.
+**IMPORTANT:** The UART is 2-Wire (full-duplex), NOT half-duplex on a single wire!
+- **Green** = Controller TX (controller sends on this line)
+- **Yellow** = Controller RX (controller receives on this line)
+
+The dashboard stays connected for power, but disconnect the **Yellow wire** from the dashboard side so the CP2102 can send commands directly to the controller without interference.
+
+This was confirmed by the Navee service technician setup (visible in service video) where both Yellow and Green wires are connected to the USB-UART adapter.
 
 ## Procedure
 
-### Step 1: Disconnect Dashboard
-Unsolder or cut the dashboard's connection to the 5-wire cable harness. The controller needs to see NO dashboard to enter its bootloader.
+### Step 1: Prepare Wiring
+Dashboard stays connected for power. Disconnect only the **Yellow wire** from the dashboard side. This lets the CP2102 send commands directly to the controller on Yellow without interference from the dashboard.
 
-### Step 2: Connect CP2102
-- CP2102 TX + RX → Green wire
+### Step 2: Connect CP2102 (with level shifter)
+- CP2102 TX → **Level Shifter (3.3V→5V)** → Yellow wire (Controller RX)
+- CP2102 RX → Green wire (Controller TX)
 - CP2102 GND → Black wire
 - Connect CP2102 to Mac via USB
+
+**Without level shifter (fallback):** If your CP2102 has a 5V jumper, set it to 5V and connect TX directly to Yellow. The 5V output is closer to the 3.8V bus level and may be tolerated by the controller's input.
 
 ### Step 3: Power On Scooter
 Turn on the scooter (battery must be connected). The controller powers up and, without a dashboard responding, should enter its UART bootloader.
@@ -92,14 +124,13 @@ Based on "Download_Tool_S" screenshots:
 
 The service tool showed "Total Data Blocks: 321" for an S40 firmware (41,088 bytes / 128 = 321). Confirms complete file is sent including header.
 
-## Half-Duplex Notes
+## 2-Wire UART Notes
 
-The green UART wire is half-duplex (single wire for both directions). When sending, the CP2102 will receive its own transmitted data as echo. The flasher script handles this by:
-1. Sending the block
-2. Reading back echo + response
-3. Looking for ACK/NAK after the echo bytes
+The UART uses two separate wires (full-duplex):
+- **Green** = Controller TX → CP2102 RX (reading)
+- **Yellow** = Controller RX ← CP2102 TX (sending)
 
-If echo causes issues, insert a 1kΩ resistor between CP2102 TX and the green wire.
+No echo handling needed — TX and RX are on separate lines. This was previously assumed to be half-duplex (single wire), which caused all UART flash attempts to fail because the controller never received our commands on Green (it only transmits on Green and receives on Yellow).
 
 ## Baudrate
 
@@ -114,9 +145,11 @@ python3 tools/uart_direct_flasher.py --detect --baud 9600
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| No 'C' signal | Dashboard still connected | Disconnect dashboard |
+| No 'C' signal | TX on wrong wire | TX must go to **Yellow** (Controller RX), not Green |
+| No 'C' signal | Voltage too low | CP2102 3.3V is insufficient for 3.8V bus — use level shifter |
 | No 'C' signal | Wrong baud rate | Try 115200 |
 | No 'C' signal | Controller not powered | Check battery, turn on scooter |
+| 0 bytes received | CP2102 TX on Yellow disrupting bus | Check level shifter, ensure 3.8V+ output |
+| Controller beeping | Yellow wire disconnected | Dashboard Yellow must stay connected OR be properly driven |
 | NAK on blocks | Wrong baud or CRC | Check baud, try checksum mode |
-| Echo issues | Half-duplex | Add 1kΩ resistor on TX |
-| Navee frames (0x61/0x64) | Dashboard still connected | Disconnect dashboard! |
+| Navee frames on Green | Normal operation | Green carries both directions (bus + crosstalk) |

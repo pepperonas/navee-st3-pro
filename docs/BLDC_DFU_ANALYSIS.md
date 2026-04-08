@@ -132,3 +132,15 @@ Request BLDC firmware update from Navee's authorized service center.
 Buy international BLDC controller from AliExpress.
 - **Pro**: Guaranteed to work, no firmware hacking needed
 - **Con**: Cost (~30-50€), need to desolder/swap potted unit
+
+### Approach F: Yellow Wire UART Flash (NEW — 2026-04-08)
+Send XMODEM firmware directly to controller via the **Yellow wire** (Controller RX) with a level shifter.
+- **Discovery**: The Yellow wire (3.8V idle) is the Controller's dedicated RX input. Disconnecting it causes error beeping. All previous UART attempts sent on Green (Controller TX), which the controller ignores for incoming data.
+- **Pro**: No physical access to controller board needed — just the cable harness connector
+- **Con**: Requires level shifter (3.3V→5V) because CP2102 3.3V is insufficient for the 3.8V bus
+- **Status**: Wiring confirmed, voltage level mismatch identified. Awaiting test with proper level shifter.
+- **Test results so far**:
+  - CP2102 RX only on Yellow → 0 bytes (Yellow is an input, not output)
+  - CP2102 TX (3.3V) on Yellow → kills all communication (voltage too low)
+  - Disconnecting Yellow from dashboard → controller beeps (expects signal)
+  - `yellow_wire_test.py` Phase 2 injection at 3.3V → 0 response frames (voltage mismatch)

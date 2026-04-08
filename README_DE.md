@@ -39,8 +39,9 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | 8 | Direkter UART-Flash | Controller geht nicht in Bootloader — proprietärer DFU-Trigger unbekannt |
 | 9 | Hybrid BLE+UART Flash | Dashboard sendet "ok\r" auf UART nach dfu_start 2, Controller ignoriert es |
 | 10 | SWD-Flash (LKS32MC081) | MCU identifiziert, SWD ungeschützt — Controller-Board physisch nicht zugänglich ohne Ausbau |
+| 11 | Yellow-Wire-Injection | **Gelb = Controller RX bestätigt!** Trennung von Gelb verursacht Fehlerpiepen. CP2102 3,3V zu niedrig für 3,8V-Bus — Level-Shifter benötigt. Alle bisherigen UART-Versuche scheiterten, weil wir auf Grün (Controller TX) gesendet haben statt auf Gelb (Controller RX) |
 
-**Aktueller Status:** Das Speed-Limit wird vom BLDC-Motor-Controller durchgesetzt (nicht vom Dashboard). Alle Software-Ansätze ausgeschöpft — Dashboard blockiert BLDC-Firmware-Relay, Controller ignoriert UART-Befehle, SWD-Pads nicht zugänglich. Controller-MCU als LKS32MC081 identifiziert (Cortex-M0, 64KB, SWD offen). **Empfohlen: AliExpress internationaler Controller-Tausch.**
+**Aktueller Status:** Wichtiger Durchbruch — die gelbe Ader im Kabelbaum ist der **Controller-RX-Eingang** (3,8V-Logikpegel), bestätigt durch Fehlerpiepen bei Trennung und Bus-Störung bei falschem Spannungspegel. Alle bisherigen UART-Versuche (MitM, Direct Flash, Hybrid) sendeten Befehle auf der falschen Leitung (Grün = Controller TX). Ein Level-Shifter (3,3V→3,8V/5V) wird benötigt, um die gelbe Ader korrekt anzusteuern. **Nächster Schritt: UART-Flash mit korrekter Verkabelung wiederholen (TX→Gelb via Level-Shifter, RX←Grün).**
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 
@@ -218,7 +219,7 @@ Der NOP entfernt den bedingten Sprung, sodass der Code immer in den benutzerdefi
 - MAC: `10:A5:62:9A:BB:3E`
 - Identifiziert am 19. März beim Zerlegen des Displays (Kurzschluss-Vorfall)
 
-**Interne Verdrahtung:** 5-adriges Kabel (schwarz=GND, rot=53V, blau=52V, gelb=unbekannt, grün=UART 19200 Baud)
+**Interne Verdrahtung:** 5-adriges Kabel (schwarz=GND, rot=53V, blau=52V, gelb=Controller RX 3,8V, grün=Controller TX/Shared Bus 4,12V, beide 19200 Baud 8N1)
 
 > Vollständige Details: [`docs/HARDWARE.md`](docs/HARDWARE.md)
 
@@ -362,6 +363,7 @@ navee/
 |   +-- ota_flasher.py                BLE-OTA-Flasher (macOS/bleak)
 |   +-- patch_firmware.py             Automatischer Patcher + SHA-256-Neuberechnung
 |   +-- rtl_flash_dump.py             RTL8762C-Flash-Dump-Skript
+|   +-- yellow_wire_test.py           Yellow-Wire-Injektionstest (Controller-RX-Entdeckung)
 |   +-- ghidra_analysis/              10 Ghidra-Headless-Skripte
 +-- reverse-engineering/
 |   +-- com.navee.ucaret.apk            Offizielle Navee-APK

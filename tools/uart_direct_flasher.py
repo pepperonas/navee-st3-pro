@@ -5,11 +5,12 @@ Navee BLDC Controller — Direct UART XMODEM Flasher
 Flashes BLDC controller firmware directly via UART, bypassing the dashboard.
 Based on the Navee service tool "Download_Tool_S" protocol.
 
-Hardware setup:
-  - Disconnect dashboard from cable harness
-  - CP2102 TX + RX → Green wire (half-duplex UART)
+Hardware setup (2-Wire UART):
+  - CP2102 TX  → Yellow wire (Controller RX)
+  - CP2102 RX  → Green wire  (Controller TX)
   - CP2102 GND → Black wire
   - DO NOT connect Red (53V) or Blue (52V)!
+  - Dashboard stays connected (for power), but Yellow wire disconnected from dashboard
   - Scooter must be powered ON (battery connected)
 
 Usage:
@@ -69,7 +70,8 @@ def detect_controller(port: str, baud: int, duration: float = 30.0):
     """Listen on UART for controller signals without sending anything."""
     print(f"Detecting controller on {port} at {baud} baud...")
     print(f"Listening for {duration}s — power cycle scooter if no signals appear")
-    print(f"Looking for: 'C' (0x43), NAK (0x15), or Navee frames (0x61/0x64)")
+    print(f"Looking for: 'C' (0x43), NAK (0x15), or Navee frames (0x64)")
+    print(f"2-Wire: RX=Green (Controller TX), TX=Yellow (Controller RX)")
     print()
 
     ser = serial.Serial(port, baud, timeout=0.1)
@@ -185,7 +187,8 @@ def flash_firmware(port: str, baud: int, firmware_path: Path, dry_run: bool = Fa
     if not ready:
         print("\nERROR: No XMODEM ready signal received.")
         print("Tips:")
-        print("  - Make sure dashboard is DISCONNECTED")
+        print("  - Check wiring: CP2102 TX→Yellow, CP2102 RX→Green, GND→Black")
+        print("  - Yellow wire must be disconnected from dashboard")
         print("  - Power cycle the scooter")
         print("  - Try --baud 115200")
         print("  - Try --init 'down dfu_start 2\\r'")
@@ -221,48 +224,28 @@ def flash_firmware(port: str, baud: int, firmware_path: Path, dry_run: bool = Fa
             checksum = sum(block_data) & 0xFF
             packet.append(checksum)
 
-        # Send and wait for response
+        # Send and wait for response (2-Wire: no echo, clean ACK/NAK)
         max_retries = 3
         block_ok = False
 
         for retry in range(max_retries):
-            # Clear any pending data
             ser.reset_input_buffer()
-
-            # Send block
             ser.write(bytes(packet))
 
-            # Read echo (half-duplex: we'll see our own data back)
-            # Wait a bit then read response
-            time.sleep(0.05)
-            echo_and_resp = ser.read(len(packet) + 10)
-
-            # The response should be AFTER our echo
-            # Look for ACK or NAK in the response
-            resp_byte = None
-            for rb in echo_and_resp:
-                if rb == XMODEM_ACK:
-                    resp_byte = XMODEM_ACK
-                    break
-                elif rb == XMODEM_NAK:
-                    resp_byte = XMODEM_NAK
-                    break
-                elif rb == XMODEM_CAN:
-                    print(f"\n  CANCELLED by controller at block {block_num + 1}!")
-                    ser.close()
-                    return False
+            # Wait for ACK/NAK (no echo on 2-wire UART)
+            resp = ser.read(1)
+            resp_byte = resp[0] if resp else None
 
             if resp_byte is None:
-                # No echo filtering — try reading more
-                time.sleep(0.5)
-                more = ser.read(10)
-                for rb in more:
-                    if rb == XMODEM_ACK:
-                        resp_byte = XMODEM_ACK
-                        break
-                    elif rb == XMODEM_NAK:
-                        resp_byte = XMODEM_NAK
-                        break
+                # Timeout — try reading a bit more
+                time.sleep(0.3)
+                more = ser.read(1)
+                resp_byte = more[0] if more else None
+
+            if resp_byte == XMODEM_CAN:
+                print(f"\n  CANCELLED by controller at block {block_num + 1}!")
+                ser.close()
+                return False
 
             if resp_byte == XMODEM_ACK:
                 block_ok = True
@@ -345,6 +328,7 @@ def main():
     parser.add_argument("--strip-header", action="store_true", help="Strip 16-byte Navee OTA header")
     parser.add_argument("--init", default=None, help="Init command to send before XMODEM (e.g. 'down dfu_start 2\\r')")
     parser.add_argument("--duration", type=float, default=30.0, help="Detection duration in seconds")
+    parser.add_argument("--half-duplex", action="store_true", help="Legacy mode: TX+RX on same wire (green)")
     args = parser.parse_args()
 
     port = args.port or find_port()

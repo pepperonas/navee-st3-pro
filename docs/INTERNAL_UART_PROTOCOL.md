@@ -15,8 +15,8 @@ Documentation of the internal UART communication protocol between the Navee ST3 
 | Black  | GND                   | 0V       | Reference ground                              |
 | Red    | VCC (Battery)         | 53.04V   | WARNING: Do NOT connect to microcontroller    |
 | Blue   | VCC (Dashboard)       | 52.2V    | WARNING: Do NOT connect to microcontroller    |
-| Yellow | Signal (unknown)      | 3.76V    | Not UART — unknown signal, do not use         |
-| Green  | UART (bidirectional)  | ~4.12V   | Data line — 19200 baud, both directions       |
+| Yellow | Controller RX         | 3.8V     | Dashboard → Controller data input (confirmed) |
+| Green  | Shared UART bus       | ~4.12V   | Both directions visible (half-duplex bus)     |
 
 ### UART Parameters
 
@@ -29,6 +29,28 @@ Documentation of the internal UART communication protocol between the Navee ST3 
 | Logic Level | ~4V (non-standard — not 3.3V or 5V) |
 
 The logic level of approximately 4V means direct connection to a 3.3V microcontroller (Arduino, ESP32) requires a logic level shifter. In practice, 5V Arduino inputs have tolerated this signal directly in testing, but a level shifter is recommended for safe long-term use.
+
+### Two-Wire Architecture (discovered 2026-04-08)
+
+The UART is NOT single-wire half-duplex as originally assumed. There are two data lines:
+
+| Wire   | Function           | Direction              | Voltage | Notes |
+|--------|--------------------|------------------------|---------|-------|
+| Green  | Shared UART bus    | Both directions        | 4.12V   | Controller TX + crosstalk from Yellow |
+| Yellow | Controller RX      | Dashboard → Controller | 3.8V    | Dedicated input to controller |
+
+**Evidence:**
+1. **Disconnecting Yellow causes error beeping** — the controller expects data on Yellow and alarms when it stops
+2. **CP2102 TX (3.3V) on Yellow kills all communication** — voltage mismatch (3.3V vs 3.8V) disrupts the controller, 0 bytes received on Green during test
+3. **Yellow at 0V when disconnected from dashboard** — the dashboard drives Yellow at 3.8V
+4. **Navee service technician video** shows USB-UART adapter connected to both Yellow AND Green wires
+5. **RoboCoffee documentation** describes "standard two-wire UART (TX+RX)" for Brightway scooters
+
+**Why Green shows both 0x61 and 0x64 frames:** Green carries Controller TX (0x64 frames) natively. The 0x61 frames visible on Green are likely electrical crosstalk from the Yellow wire within the cable harness, or an internal bus connection on the controller PCB.
+
+**Implication:** All previous UART attempts (MitM, direct flash, hybrid) failed because we sent commands on Green — but the controller receives commands on Yellow. The controller never saw our data.
+
+**Challenge:** The Yellow wire operates at 3.8V logic level. Standard CP2102 adapters output 3.3V, which is too low. A 3.3V→5V level shifter or a 5V-capable UART adapter is needed to properly drive the Yellow wire.
 
 ---
 
@@ -221,6 +243,8 @@ MitM Attack (tested):
 
 The speed limit is enforced inside the controller firmware, not by the UART data stream. The dashboard UART frames reflect the configured limit as telemetry, but the controller does not use those values as its authoritative source. The limit must be addressed at the firmware level (RTL8762C patch at offset `0xF848`).
 
+**Important update (2026-04-08):** The MitM test was conducted on the Green wire only. Since we now know the controller receives commands on the **Yellow wire**, the MitM result may be invalid — the controller may have been reading the unmodified frames from the dashboard on Yellow while we were modifying frames on Green. A proper MitM test would need to intercept the Yellow wire (Dashboard TX → Controller RX) with a level-shifted signal.
+
 ---
 
 ## Identified Bytes Summary
@@ -267,6 +291,12 @@ The following fields have not been definitively identified and warrant further i
 - Bytes 5–8 in Frame C — confirm battery voltage hypothesis by measuring at various charge levels
 - Byte 10 in Frame C — observe during riding to determine if it tracks speed
 - Bytes 13–14 in Frame C (`D5 48`) — check for changes after riding distance; may be odometer
+
+### Resolved Questions (2026-04-08)
+
+- **Yellow wire function: CONFIRMED as Controller RX** (Dashboard → Controller data input at 3.8V logic level). Evidence: disconnecting Yellow causes error beeping; CP2102 3.3V TX on Yellow disrupts all communication; Navee service video shows both Yellow and Green connected to UART adapter.
+- **UART topology: Two-Wire, NOT single-wire half-duplex.** Green carries Controller TX (0x64 frames) plus crosstalk of 0x61 frames from Yellow. The controller receives commands exclusively on Yellow.
+- **MitM test validity: QUESTIONABLE.** The Arduino MitM intercepted frames on Green only. The controller may have been reading unmodified dashboard frames on Yellow the entire time, rendering the MitM test inconclusive for speed limit modification via UART.
 
 ---
 

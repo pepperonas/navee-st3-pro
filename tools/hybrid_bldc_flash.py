@@ -128,12 +128,12 @@ async def main():
     print("  Phase 2: UART — XMODEM Transfer")
     print("=" * 50)
 
-    print(f"Opening {serial_port} at 19200 baud...")
+    print(f"Opening {serial_port} at 19200 baud (2-Wire: TX→Yellow, RX→Green)...")
     ser = serial.Serial(serial_port, 19200, timeout=1.0)
 
-    # Wait for 'C' from controller
+    # Wait for 'C' from controller (comes via Green = Controller TX)
     print("Waiting for controller XMODEM ready signal ('C')...")
-    print("  (Dashboard frames on UART are expected and filtered)")
+    print("  (Reading from Green wire = Controller TX)")
 
     ready = False
     start = time.time()

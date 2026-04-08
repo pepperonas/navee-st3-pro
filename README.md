@@ -39,8 +39,9 @@ This project has fully reverse-engineered the proprietary BLE protocol, develope
 | 8 | Direct UART Flash | Controller doesn't enter bootloader — proprietary DFU trigger unknown |
 | 9 | Hybrid BLE+UART Flash | Dashboard sends "ok\r" on UART after dfu_start 2, but controller ignores it |
 | 10 | SWD Flash (LKS32MC081) | MCU identified, SWD unprotected — but controller board physically inaccessible without removing unit |
+| 11 | Yellow Wire Injection | **Yellow = Controller RX confirmed!** Disconnecting Yellow causes error beeping. CP2102 3.3V too low for 3.8V bus — level shifter needed. All previous UART attempts failed because we sent on Green (Controller TX), not Yellow (Controller RX) |
 
-**Current status:** Speed limit is enforced by the BLDC motor controller (not the dashboard). All software approaches exhausted — dashboard blocks BLDC firmware relay, controller ignores UART commands, SWD pads inaccessible. Controller MCU identified as LKS32MC081 (Cortex-M0, 64KB, SWD open). **Recommended: AliExpress international controller swap.**
+**Current status:** Major breakthrough — the Yellow wire in the cable harness is the **Controller RX input** (3.8V logic level), confirmed by error beeping when disconnected and bus disruption when driven at wrong voltage. All previous UART attempts (MitM, direct flash, hybrid) sent commands on the wrong wire (Green = Controller TX). A level shifter (3.3V→3.8V/5V) is needed to properly drive the Yellow wire. **Next step: Repeat UART flash with correct wiring (TX→Yellow via level shifter, RX←Green).**
 
 > Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 
@@ -218,7 +219,7 @@ The NOP removes the conditional branch, making the code always fall through to t
 - MAC: `10:A5:62:9A:BB:3E`
 - Identified March 19 during dashboard disassembly (short-circuit incident)
 
-**Internal wiring:** 5-wire cable (black=GND, red=53V, blue=52V, yellow=unknown, green=UART 19200 baud)
+**Internal wiring:** 5-wire cable (black=GND, red=53V, blue=52V, yellow=Controller RX 3.8V, green=Controller TX/shared bus 4.12V, both 19200 baud 8N1)
 
 > Full details: [`docs/HARDWARE.md`](docs/HARDWARE.md)
 
@@ -362,6 +363,7 @@ navee/
 |   +-- ota_flasher.py                BLE OTA flasher (macOS/bleak)
 |   +-- patch_firmware.py             Automatic patcher + SHA-256 recalculation
 |   +-- rtl_flash_dump.py             RTL8762C flash dump script
+|   +-- yellow_wire_test.py           Yellow wire injection test (Controller RX discovery)
 |   +-- ghidra_analysis/              10 Ghidra headless scripts
 +-- reverse-engineering/
 |   +-- com.navee.ucaret.apk            Official Navee APK

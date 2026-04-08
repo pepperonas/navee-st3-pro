@@ -30,14 +30,17 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | # | Ansatz | Ergebnis |
 |---|--------|----------|
 | 1 | BLE CMD `0x6E` (Max Speed) | Fehlgeschlagen — ACK erhalten, von Firmware ignoriert |
-| 2 | UART MitM (Arduino) | Fehlgeschlagen — Controller ignoriert manipulierte Frames |
-| 3 | **Firmware-Patch (Ghidra)** | **Bestätigt — 1-Byte-NOP aktiviert benutzerdefinierten Geschwindigkeitsmodus** |
-| 4 | OTA-Flash (BLE XMODEM) | SHA-256 geknackt, OTA-Binary erstellt — **wartet auf Test am funktionierenden Scooter** |
+| 2 | UART MitM (Arduino) | Fehlgeschlagen — Controller ignoriert manipulierte Frames (1168 Frames getestet) |
+| 3 | **Firmware-Patch (Ghidra)** | **Bestätigt — 1-Byte-NOP bei 0xF848, Speed-Tabelle bei 0xF074** |
+| 4 | Meter-OTA-Flash | Transfer funktioniert (1080/1080 ACK'd) — Bootloader lehnt alle modifizierten Firmwares ab (undokumentierter Integritätscheck) |
 | 5 | **SPI-Flash direkt (rtltool)** | **Bestätigt — Patch geschrieben und per Read-Back verifiziert** |
-| 6 | Controller-Tausch (AliExpress) | Von der Community bestätigt |
-| 7 | BLDC-Firmware-Tausch (Global→DE) | **Blockiert** — Dashboard UART-Relay NAK'd alle XMODEM-Blöcke |
+| 6 | **Controller-Tausch (AliExpress)** | **Von der Community bestätigt — empfohlener Ansatz** |
+| 7 | BLDC-OTA-Flash | Type 0x02 vom Dashboard NAK'd; Type 0x01 Hack: 369/369 ACK'd aber kein UART-Relay zum Controller |
+| 8 | Direkter UART-Flash | Controller geht nicht in Bootloader — proprietärer DFU-Trigger unbekannt |
+| 9 | Hybrid BLE+UART Flash | Dashboard sendet "ok\r" auf UART nach dfu_start 2, Controller ignoriert es |
+| 10 | SWD-Flash (LKS32MC081) | MCU identifiziert, SWD ungeschützt — Controller-Board physisch nicht zugänglich ohne Ausbau |
 
-**Aktueller Status:** OTA-Transfer funktioniert (1080/1080 ACK'd), aber Bootloader lehnt ALLE modifizierten Firmwares ab trotz korrekter SHA-256 — undokumentierter Integritätscheck auf neuer Dashboard-Hardware. BLDC-DFU blockiert durch Dashboard UART-Relay (per Sniffer bestätigt). Speed-Limit-Bytes in UART Frame A identifiziert bei Firmware-Offset 0xF074 (`MOV R0, #22`). Nächster Schritt: MITM-Proxy oder SPI-Flash-Direktpatch.
+**Aktueller Status:** Das Speed-Limit wird vom BLDC-Motor-Controller durchgesetzt (nicht vom Dashboard). Alle Software-Ansätze ausgeschöpft — Dashboard blockiert BLDC-Firmware-Relay, Controller ignoriert UART-Befehle, SWD-Pads nicht zugänglich. Controller-MCU als LKS32MC081 identifiziert (Cortex-M0, 64KB, SWD offen). **Empfohlen: AliExpress internationaler Controller-Tausch.**
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

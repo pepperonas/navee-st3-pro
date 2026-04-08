@@ -30,14 +30,17 @@ This project has fully reverse-engineered the proprietary BLE protocol, develope
 | # | Approach | Result |
 |---|----------|--------|
 | 1 | BLE CMD `0x6E` (Max Speed) | Failed — ACK'd but ignored by firmware |
-| 2 | UART MitM (Arduino) | Failed — Controller ignores manipulated frames |
-| 3 | **Firmware Patch (Ghidra)** | **Verified — 1-byte NOP enables custom speed mode** |
-| 4 | OTA Flash (BLE XMODEM) | SHA-256 cracked, OTA binary created — **awaiting test on working scooter** |
+| 2 | UART MitM (Arduino) | Failed — Controller ignores manipulated frames (1168 frames tested) |
+| 3 | **Firmware Patch (Ghidra)** | **Verified — 1-byte NOP at 0xF848, speed table at 0xF074** |
+| 4 | Meter OTA Flash | Transfer works (1080/1080 ACK'd) — bootloader rejects all modified firmware (undocumented integrity check) |
 | 5 | **SPI Flash Direct (rtltool)** | **Verified — Patch written and confirmed via read-back** |
-| 6 | Controller Swap (AliExpress) | Verified by community |
-| 7 | BLDC Firmware Swap (Global→DE) | **Blocked** — dashboard UART relay NAKs all XMODEM blocks |
+| 6 | **Controller Swap (AliExpress)** | **Verified by community — recommended approach** |
+| 7 | BLDC OTA Flash | Type 0x02 NAK'd by dashboard; Type 0x01 hack: 369/369 ACK'd but no UART relay to controller |
+| 8 | Direct UART Flash | Controller doesn't enter bootloader — proprietary DFU trigger unknown |
+| 9 | Hybrid BLE+UART Flash | Dashboard sends "ok\r" on UART after dfu_start 2, but controller ignores it |
+| 10 | SWD Flash (LKS32MC081) | MCU identified, SWD unprotected — but controller board physically inaccessible without removing unit |
 
-**Current status:** OTA transfer works (1080/1080 ACK'd) but bootloader rejects ALL modified firmware despite correct SHA-256 — undocumented integrity check on new dashboard hardware. BLDC DFU blocked by dashboard UART relay (confirmed via sniffer). Speed limit bytes in UART Frame A identified at firmware offset 0xF074 (`MOV R0, #22`). Next: MITM proxy or SPI flash direct patch.
+**Current status:** Speed limit is enforced by the BLDC motor controller (not the dashboard). All software approaches exhausted — dashboard blocks BLDC firmware relay, controller ignores UART commands, SWD pads inaccessible. Controller MCU identified as LKS32MC081 (Cortex-M0, 64KB, SWD open). **Recommended: AliExpress international controller swap.**
 
 > Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

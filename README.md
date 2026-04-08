@@ -42,7 +42,7 @@ This project has fully reverse-engineered the proprietary BLE protocol, develope
 | 11 | Yellow Wire MitM | **Yellow = Controller RX confirmed!** New protocol discovered (0x51/0xAE). Speed byte at offset 10 = 0x16 (22 km/h). MitM modified 795 frames — controller briefly went faster then error. Speed limit hardcoded in BLDC firmware country code |
 | 12 | UART Bootloader Trigger | Controller does NOT enter bootloader when dashboard disconnected — no 'C' (0x43) signal. Proprietary bootloader trigger unknown |
 
-**Current status:** Yellow wire protocol fully decoded (header 0x51, footer 0xAE, 14-byte frames). Speed limit byte identified at offset 10. Arduino MitM confirmed controller briefly responds to modified speed bytes, but BLDC firmware country code (`0xCF` = DE) enforces 22 km/h internally. Controller does not enter UART bootloader mode. **Speed limit can only be changed by flashing the BLDC controller firmware (SWD) or physical controller swap.**
+**Current status:** Yellow wire protocol fully decoded (header 0x51, footer 0xAE, 14-byte frames). Speed limit byte identified at offset 10. Dashboard replacement test (Arduino generates own 0x51 frames) confirmed: controller echoes its own internal speed values (22/21) regardless of what it receives on Yellow. "NAK" responses were false positives (0x15 = speed byte within echoed frames). All bootloader entry probes failed (STM32 sync, text commands, LKS32 patterns, Yellow DFU frames — at 19200 and 115200 baud). **Speed limit is hardcoded in BLDC controller firmware — can only be changed via SWD flash or physical controller swap.**
 
 > Full analysis: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

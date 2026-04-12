@@ -41,8 +41,20 @@ Dieses Projekt hat das proprietäre BLE-Protokoll vollständig dekodiert, eine u
 | 10 | SWD-Flash (LKS32MC081) | MCU identifiziert, SWD ungeschützt — Controller-Board physisch nicht zugänglich ohne Ausbau |
 | 11 | Yellow-Wire-MitM | **Gelb = Controller RX bestätigt!** Neues Protokoll entdeckt (0x51/0xAE). Speed-Byte bei Offset 10 = 0x16 (22 km/h). MitM hat 795 Frames modifiziert — Controller fuhr kurz schneller, dann Fehler. Speed-Limit im BLDC-Firmware-Ländercode fest einprogrammiert |
 | 12 | UART-Bootloader-Trigger | Controller geht NICHT in Bootloader wenn Dashboard getrennt — kein 'C' (0x43)-Signal. Proprietärer Bootloader-Trigger unbekannt |
+| 13 | **Binärvergleich (Ghidra-Level)** | **1-Byte-Patch bestätigt ausreichend.** Speed-Progression, PWM-Skalierung, Ländercode-Tabellen IDENTISCH in DE/Global-Firmware. Nur Region-Byte 0x0011 unterscheidet sich (0xCF→0xB7). 6KB DE-Extra ist neuerer Motor-Control-Code, kein Speed-Limiter. Chip-ID `TK00323H0000001S73` (Tianjin-Familie) |
+| 14 | ESC-Board TX0/RX0 UART | Alle 11 Baudraten gescannt (1200-921600). Nur Floating-Noise bei 115200 (31 Bytes/30s). TX0/RX0 messen beide 0V gegen GND — Pin stumm oder kein echter UART-Output. Service-Port gezielt von Navee deaktiviert |
 
-**Aktueller Status:** Yellow-Wire-Protokoll vollständig dekodiert (Header 0x51, Footer 0xAE, 14-Byte-Frames). Speed-Limit-Byte bei Offset 10 identifiziert. Dashboard-Ersatz-Test (Arduino generiert eigene 0x51 Frames) bestätigt: Controller echot seine eigenen internen Speed-Werte (22/21), unabhängig davon was er auf Gelb empfängt. „NAK"-Antworten waren Fehlalarme (0x15 = Speed-Byte innerhalb der geechoten Frames). Alle Bootloader-Entry-Probes gescheitert (STM32-Sync, Text-Befehle, LKS32-Patterns, Yellow-DFU-Frames — bei 19200 und 115200 Baud). **Speed-Limit ist in der BLDC-Controller-Firmware fest einprogrammiert — kann nur per SWD-Flash oder physischem Controller-Tausch geändert werden.**
+**Aktueller Status:** Controller-Firmware auf Binärebene vollständig rückentwickelt — wir wissen EXAKT, was zu ändern ist (1 Byte: Region `0xCF` → `0xB7`). Jeder denkbare Schreibpfad getestet und blockiert: BLE OTA, UART MitM, SWD, Direkter UART, ESC-Board Service-Ports. Navee hat systematisch alle Firmware-Modifikationswege geschlossen (Chip-Markings abgeschliffen, Harz-Verguss, kein UART-Bootloader, Dashboard blockiert BLDC-Relay). **Einzige bewährte Lösung: AliExpress Global-Controller-Tausch (~50€, Community-verifiziert).**
+
+### Warum Navee anders ist als Xiaomi/Ninebot
+
+| Plattform | Bootloader-Zugang | Methode |
+|-----------|-------------------|---------|
+| Xiaomi M365 (STM32) | BOOT0-Pin-Pad auf PCB | BOOT0 → 3,3V, Power-Cycle → STM32 ROM-Bootloader |
+| Ninebot/Segway | IAP-Befehl in laufender Firmware | `5A A5 [len] [src] [dst] 07 [size] [chk]` per UART senden |
+| **Navee ST3 Pro D** | **Keiner gefunden** | MCU-Markings abgeschliffen, BOOT0 unbekannt, kein IAP-Befehl, SWD-Pads unter Harz |
+
+Xiaomi und Ninebot bieten beide zugängliche Pfade für Firmware-Modifikation — entweder hardware-getriggert (BOOT0) oder software-getriggert (IAP). Navee hat beide Pfade geschlossen und ist damit die erste große Consumer-E-Scooter-Plattform mit wirksamem Anti-Tamper am Motor-Controller.
 
 > Vollständige Analyse: [`docs/ATTACK_VECTORS.md`](docs/ATTACK_VECTORS.md)
 

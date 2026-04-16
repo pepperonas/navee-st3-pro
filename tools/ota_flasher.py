@@ -1510,9 +1510,10 @@ class NaveeOTAFlasher:
                         break
 
                 if xmodem_ready:
-                    print("  XMODEM Ready! (0x43)")
-                    print("  Warte 2s für Relay-Setup...")
-                    await asyncio.sleep(2.0)
+                    print("  XMODEM Ready! (0x43) — sending Block 1 immediately")
+                    # APP behavior (DFUProcessor.B() Z. 344-351): NO wait between
+                    # 'C' arrival and Block 1 send. Any delay >100ms causes the
+                    # dashboard to re-issue 'C' and our Block 1 collides → NAK.
                     # Clear any stale responses/signals before transfer
                     self.last_responses.clear()
                     self.log.log("xmodem_ready")

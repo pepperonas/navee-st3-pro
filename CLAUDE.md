@@ -8,7 +8,14 @@ Navee ST3 Pro Scooter Toolkit — Reverse engineering, firmware analysis, and An
 
 **Primary goal:** Remove the 22 km/h speed limit enforced by the BLDC motor controller firmware (region byte `0xCF` = DE).
 
-**Current status (April 2026):** 16 attack vectors tested. Speed limit is hardcoded in the BLDC controller firmware — all software approaches via BLE and UART are exhausted. Remaining paths: UART bootloader via TX0/RX0 or TX2/RX2 on the ESC board, SWD with MCU identification, or physical controller swap.
+**Current status (April 2026):** Speed limit is hardcoded in the BLDC controller firmware (region byte `0xCF` @ offset `0x0011`). All software-only paths via BLE and UART are exhausted:
+- Meter OTA with stock FW works (`rsq dfu_ok`), with patched FW is silently rejected after EOT (SHA-256 correct, an undocumented 2nd validator in the dashboard PATCH image blocks it).
+- BLDC OTA via BLE: 36+ sessions, 0 ACKs — the dashboard FW has no `dfu_start 2` handler and no UART XMODEM relay to the controller.
+- Dashboard contains an Apple FMNA (Find My) stack with crypto symbols (`fmna_*`, `fm_crypto_*`, `secp256r1`, `AES-256-GCM`) — likely HW Secure Element present but not yet physically identified.
+
+Remaining paths: (1) decompile the PATCH image at `0x003000-0x00CFFF` to understand the OTA 2nd validator, (2) UART bootloader via TX0/RX0 or TX2/RX2 on the ESC board (LKS32MC081 ROM bootloader, not yet probed), (3) physical controller swap to Global variant. No SWD pads exist on the ESC board (epoxy potting).
+
+See `docs/STATUS.md` for the full empirical record and `docs/SECURE_ELEMENT.md` for FMNA findings.
 
 ## Build Commands
 
@@ -110,13 +117,12 @@ Far right:  ACC · TX0 · RX0 · TM2              ← Primary UART, bootloader c
 
 ## Key Files
 
-### Documentation
-- `docs/HARDWARE.md` — Complete pinout, MCU specs, wiring, flash layout
-- `docs/INTERNAL_UART_PROTOCOL.md` — Both UART protocols (Green 0x61 + Yellow 0x51)
-- `docs/PROTOCOL.md` — BLE command reference
-- `docs/BLDC_DFU_ANALYSIS.md` — All DFU approaches and why they failed
-- `docs/AUTHENTICATION.md` — AES-128 auth flow
-- `reverse-engineering/APK_ANALYSIS.md` — Complete APK decompilation reference
+### Documentation (4 files, minimal set)
+- `docs/HARDWARE.md` — MCUs, PCB, cable pinout, flash layout
+- `docs/PROTOCOL.md` — BLE + internal UART protocol, command table
+- `docs/STATUS.md` — empirical research status (verified pass/fail matrix)
+- `docs/SECURE_ELEMENT.md` — Apple FMNA findings in dashboard FW
+- `reverse-engineering/APK_ANALYSIS.md` — decompiled APK reference
 
 ### Firmware Files (`tools/firmware/`)
 - DE BLDC: `navee_bldc_v0.0.1.5_ST3_PRO_DE_22km_h,_pid=23452.bin` (53,376 bytes)
@@ -128,13 +134,17 @@ Far right:  ACC · TX0 · RX0 · TM2              ← Primary UART, bootloader c
 - Release builds use ProGuard minification
 - Signing keystore: `~/.android/debug.keystore` (debug key, pass: `android`)
 
-## Attack Vector Summary (16 tested)
+## Attack Vector Summary
 
 | # | Approach | Result |
 |---|----------|--------|
-| 1-6 | BLE commands, OTA patches, UART MitM (Green) | Failed — controller ignores |
-| 7-9 | BLDC DFU via BLE, hybrid BLE+UART | Failed — dashboard blocks relay |
-| 10 | SWD flash | Failed — no SWD pads, epoxy potting |
-| 11-12 | Yellow wire MitM + dashboard replacement | Controller briefly faster, then reverts to internal limit |
-| 13-14 | Bootloader probes (19200+115200) | No bootloader response |
-| 15-16 | ESC board UART scan (TX0/RX0, TX2/RX2) | **Pending — next step** |
+| 1 | BLE commands (`0x6E` max speed, `0x6B` custom limit) | ACKed, controller still caps at 22 km/h |
+| 2 | UART MitM (Green wire) | Controller ignores manipulated frames |
+| 3 | Meter OTA stock firmware | Works (1080/1080 blocks, `rsq dfu_ok`) — proves OTA path functional |
+| 4 | Meter OTA patched firmware (correct SHA-256) | Silent rejection after EOT — 2nd validator in PATCH image blocks it |
+| 5 | SPI-flash direct patch (rtltool) | Write verified via read-back (commit `e4178ec`) — boot validator only does SHA-256 |
+| 6 | BLDC OTA (`dfu_start 2`, type=0x02) | NAK on block 1 in 36+ sessions — no relay code in dashboard FW |
+| 7 | BLDC-as-meter OTA (type=0x01 header) | 369/369 blocks ACKed, rejected at end; written to meter flash, not BLDC |
+| 8 | Yellow wire MitM + dashboard replacement | Controller continues to enforce internal limit |
+| 9 | ESC board UART scan (TX0/RX0, TX2/RX2) | **Pending — LKS32MC081 ROM bootloader probe** |
+| 10 | Physical BLDC controller swap (Global variant) | Community-verified, not yet attempted here |

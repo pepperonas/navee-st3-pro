@@ -71,3 +71,14 @@ Pointers in code appear both as `0x008XXXXX` (uncached XIP) and `0x088XXXXX` (ca
 ## RTL8762C recovery access
 
 `rtltool` (https://github.com/wuwbobo2021/rtltool) can read/write the SPI flash via UART download mode. Requires Arduino UNO on 3.3 V + CP2102 bridge. Commit `e4178ec` documents a verified full flash dump + sector write round-trip.
+
+## Apple FMNA stack (informational)
+
+The dashboard firmware contains a complete Find My Network Accessory implementation
+(33 `fmna_*` symbols, 5 `fm_crypto_*`, `secp256r1`, `AES-256-GCM`,
+`ServerSharedSecret`, `PairingSession`, `SerialNumberProtection`). Apple's FMNA
+certification requires a hardware Secure Element. No SE chip has been physically
+identified — the strongest bus candidate is the SPI peripheral at `0x4000F000`
+(28 literal-pool refs, most active non-BLE bus). Boot-time validation does not
+invoke the SE; OTA-time validation might (unverified). See `docs/FAILED.md` for
+impact on the speed-patch effort.

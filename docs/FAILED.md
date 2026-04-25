@@ -15,7 +15,7 @@ that one byte is trivial; getting the patched binary onto the controller is not.
 |---|---|
 | BLE pairing + auth (5 AES-128-ECB keys) | `tools/ota_flasher.py --read-info` |
 | Read BLDC/meter/BMS/screen FW versions (CMD `0x73`) | Many sessions |
-| Send speed commands `0x6E`, `0x6B` | ACKed, controller still caps at 22 km/h |
+| Send speed commands `0x6E`, `0x6B` | ACKed (also via the Android app's manual slider, free 5–60 km/h), controller still caps at 22 km/h |
 | **Meter OTA flash of stock firmware** | 1080/1080 blocks, `rsq dfu_ok` (2026-04-16) |
 | SPI-direct read/write on dashboard flash via rtltool | 512 KB dump + sector write verified (commit `e4178ec`) |
 | BLDC header CRC-16/XMODEM algorithm | Verified on 26 of 32 BLDC firmware files |
@@ -89,7 +89,7 @@ ESC PCB.
 
 | # | Vector | Result |
 |---|---|---|
-| 1 | BLE `0x6E` max-speed | ACK, no effect |
+| 1 | BLE `0x6E` max-speed (incl. Android-app slider, free value selection) | ACK, no effect |
 | 2 | BLE `0x6B` custom limit | ACK, no effect |
 | 3 | UART MitM (Green wire) | Controller ignores |
 | 4 | Meter OTA stock | Works |

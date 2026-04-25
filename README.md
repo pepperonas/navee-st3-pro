@@ -13,9 +13,11 @@ description of the Navee BLE / internal UART stack.
 ## What's here
 
 - **Android app** — independent BLE controller (Kotlin / Compose). Reads
-  telemetry, sends speed/mode commands, includes a manual speed slider that
-  exposes the same BLE command (`0x6E`) the official app uses behind a
-  PID-restricted UI. Does not bypass the firmware-internal cap.
+  telemetry, sends speed/mode commands, includes a manual speed slider
+  (5–60 km/h, free value selection) that exposes the same BLE command
+  (`0x6E`) the official app uses behind a PID-restricted UI. Empirically
+  verified: setting any value above 22 km/h is ACKed but the controller
+  ignores it.
 - **Python tooling** — firmware grabber, BLE OTA flasher (works for stock
   meter FW), patcher (correct algorithm; OTA delivery blocked by a 2nd
   validator), Ghidra automation, UART sniffers, ESC scanners.
